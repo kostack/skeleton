@@ -12,7 +12,7 @@ spring:
 
 logging:
   level:
-    com.testbirds: INFO
+    io.kostack: INFO
     org:
       springframework:
         security: INFO
