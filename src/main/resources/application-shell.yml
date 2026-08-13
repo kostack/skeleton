@@ -1,0 +1,11 @@
+spring:
+  main:
+    web-application-type: none
+  logging:
+    level:
+      com.testbirds: WARN
+      org:
+        springframework:
+          security: WARN
+          data:
+            mongodb: WARN

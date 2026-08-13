@@ -1,0 +1,20 @@
+app:
+  value: production
+jwt:
+  issuer: production
+  expiration: 300
+  public_keys:
+    pruduction: ${JWT_PUBLIC_KEY}
+spring:
+  web:
+    error:
+      include-binding-errors: always
+
+logging:
+  level:
+    com.testbirds: WARN
+    org:
+      springframework:
+        security: ERROR
+        data:
+          mongodb: ERROR

@@ -1,0 +1,122 @@
+app:
+  value: my_app_value
+cors:
+  path-pattern: "/**"
+  allowed-origin-patterns:
+    - "http://localhost:*"
+    - "null"
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+    - HEAD
+  allowed-headers:
+    - "*"
+  allow-credentials: false
+spring:
+  profiles:
+    default: dev
+  application:
+    name: skeleton-service
+  shell:
+    interactive:
+      enabled: true
+  mongodb:
+    uri: ${MONGO_URI}
+  r2dbc:
+    url: r2dbc:${MYSQL_URL}/${MYSQL_DB}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    properties:
+      schema: ${MYSQL_DB}
+    pool:
+      enabled: true
+      max-size: 20
+      initial-size: 10
+      max-idle-time: 30m
+  # Flyway (JDBC) configuration
+  flyway:
+    enabled: true
+    url: jdbc:${MYSQL_URL}/${MYSQL_DB}
+    user: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+  datasource:
+    url: jdbc:${MYSQL_URL}/${MYSQL_DB}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASS}
+    port: ${RABBITMQ_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.kostack: INFO
+    org.flywaydb: INFO
+    org:
+      springframework:
+        boot.autoconfigure.flyway: INFO
+        security: INFO
+        data:
+          mongodb: INFO
+
+# JWT Configuration
+jwt:
+  issuer: local
+  expiration: 36000000
+  private_key: ${JWT_PRIVATE_KEY}
+  public_keys:
+    local: ${JWT_PUBLIC_KEY}
+  authorizationHeaderOptions:
+    enabled: true
+    name: Authorization
+    prefix: Bearer
+  queryParameterOptions:
+    enabled: true
+    name: token
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: "/docs"
+
+---
+spring:
+  cloud:
+    function:
+      definition: consumer
+    stream:
+      bindings:
+        consumer-in-0:
+          destination: demo.queue
+          group: skeleton-service
+          consumer:
+            max-attempts: 3       # retry up to 3 times
+            back-off-initial-interval: 1000 # 1 second
+            back-off-multiplier: 2
+            back-off-max-interval: 5000
+        supplier-out-0:
+          destination: demo.queue
+      rabbit:
+        bindings:
+          consumer-in-0:
+            consumer:
+              acknowledge-mode: auto
+              auto-bind-dlq: true
+              prefetch: 50
+              requeue-rejected: false

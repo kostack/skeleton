@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="source" value="skeleton"/>
+    <!-- Console Appender -->
+    <appender name="STDOUT"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder
+                class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{5} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+    <!-- include spring configuration for logback -->
+    <include
+            resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/spring.log}"/>
+
+    <!-- these are too spammy on level=DEBUG, set to INFO -->
+    <logger name="org.eclipse.jetty" level="INFO"/>
+    <logger name="org.springframework" level="INFO"/>
+<!--    <logger name="org.mongodb.driver.cluster" level="INFO"/>-->
+<!--    <logger name="org.springframework.data.mongodb.core.index" level="INFO"/>-->
+    <logger name="io.netty.buffer.PoolThreadCache" level="INFO"/>
+
+    <!-- configure some log files for better logging on Spring profiles staging and production -->
+    <springProfile name="staging,production">
+        <!-- RabbitMQ appender -->
+        <appender name="AMQP" class="com.github.pukkaone.gelf.logback.GelfAppender">
+            <amqpURI>amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}</amqpURI>
+            <amqpExchange>service-logging</amqpExchange>
+            <amqpRoutingKey>#</amqpRoutingKey>
+            <amqpMaxRetries>3</amqpMaxRetries>
+            <amqpAutomaticRecovery>true</amqpAutomaticRecovery>
+        </appender>
+
+        <!-- Async appender to make sure that logging does not slowdown the backend -->
+        <appender name="ASYNC_AMQP" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="AMQP"/>
+            <queueSize>4096</queueSize>
+        </appender>
+    </springProfile>
+
+    <springProfile name="staging">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="ASYNC_AMQP"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="production">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_AMQP"/>
+        </root>
+    </springProfile>
+
+    <!-- fallback DEBUG logging to STDOUT if another profile is used -->
+    <springProfile name="!(staging | production)">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+        </root>
+    </springProfile>
+</configuration>
