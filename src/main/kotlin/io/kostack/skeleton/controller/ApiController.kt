@@ -12,12 +12,12 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "Api", description = "Api operations")
 @RestController
 class ApiController {
-  @GetMapping("/api/me", produces = [MediaType.APPLICATION_JSON_VALUE])
-  @PreAuthorize("@defaultAuth.canView(authentication.principal)")
   @Operation(
     operationId = "meAction",
     summary = "Retrieve current user"
   )
+  @GetMapping("/api/me", produces = [MediaType.APPLICATION_JSON_VALUE])
+  @PreAuthorize("@defaultAuth.canView(authentication.principal)")
   suspend fun meAction(
     @AuthenticationPrincipal principal: User
   ): User = principal

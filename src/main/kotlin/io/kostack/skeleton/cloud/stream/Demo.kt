@@ -9,7 +9,7 @@ import java.util.function.Consumer
 
 @Configuration
 class Demo {
-  @Profile("!shell")
+  @Profile("cloud-stream")
   @Bean
   fun consumer(): Consumer<String> =
     Consumer { msg ->

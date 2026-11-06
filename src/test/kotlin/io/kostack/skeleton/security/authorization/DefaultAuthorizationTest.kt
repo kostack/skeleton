@@ -3,16 +3,15 @@ package io.kostack.skeleton.security.authorization
 import io.kostack.skeleton.db.r2dbc.model.User
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.test.context.ActiveProfiles
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@ActiveProfiles("test")
 @SpringBootTest
 class DefaultAuthorizationTest {
   @Autowired
@@ -28,7 +27,7 @@ class DefaultAuthorizationTest {
       // Act
       val result = defaultAuthorization.canView(mockUser).awaitSingle()
 
-      // verify { mockUser.hasRole("ROLE_ADMIN") }
+      verify { mockUser.hasRole("ROLE_ADMIN") }
 
       // Assert
       assertTrue(result)

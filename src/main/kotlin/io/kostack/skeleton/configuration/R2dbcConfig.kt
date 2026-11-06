@@ -2,9 +2,9 @@ package io.kostack.skeleton.configuration
 
 import io.github.kostack.database_tools.r2dbc.converter.ListToStringConverter
 import io.github.kostack.database_tools.r2dbc.converter.StringToListConverter
-import io.kostack.skeleton.serialization.JsonSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.r2dbc.convert.R2dbcCustomConversions
@@ -20,10 +20,19 @@ class R2dbcConfig {
       MySqlDialect.INSTANCE,
       listOf(
         StringToListConverter(
-          json = JsonSerializer.jsonSerializer,
+          json = json,
           serializer = ListSerializer(String.serializer())
         ),
         ListToStringConverter()
       )
     )
+
+  companion object {
+    private val json =
+      Json {
+        isLenient = true
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+      }
+  }
 }

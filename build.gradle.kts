@@ -18,12 +18,12 @@ val dotenv: Dotenv =
     .load()
 
 plugins {
-  kotlin("jvm") version "2.3.0"
-  kotlin("plugin.spring") version "2.3.0"
-  kotlin("plugin.serialization") version "2.3.0"
-  id("org.springframework.boot") version "4.1.0"
+  kotlin("jvm") version "2.4.21"
+  kotlin("plugin.spring") version "2.4.21"
+  kotlin("plugin.serialization") version "2.4.21"
+  id("org.springframework.boot") version "4.1.2"
   id("io.spring.dependency-management") version "1.1.7"
-  id("com.diffplug.spotless") version "8.4.0"
+  id("com.diffplug.spotless") version "8.11.0"
   jacoco
 }
 
@@ -43,23 +43,28 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.2")
+    mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.4")
+    mavenBom("org.springframework.shell:spring-shell-dependencies:4.0.3")
   }
 }
 dependencies {
   // Kotlin
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
   implementation("org.jetbrains.kotlin:kotlin-reflect")
+  implementation("tools.jackson.module:jackson-module-kotlin")
 
   implementation("org.springframework.boot:spring-boot-starter-webflux")
   implementation("org.springframework.boot:spring-boot-starter-security")
+  implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
+  implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("org.springframework.cloud:spring-cloud-starter-stream-rabbit")
   implementation("org.springframework.boot:spring-boot-starter-logging")
   implementation("org.springframework.boot:spring-boot-starter-actuator")
   implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+  implementation("org.springframework.shell:spring-shell-starter")
 
   // R2DBC
   implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
@@ -73,37 +78,29 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   implementation("com.mysql:mysql-connector-j:9.7.0")
 
-  implementation("org.springframework.shell:spring-shell-starter:3.4.0")
-
   // open api code generation
-  implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:3.0.0")
-  implementation("io.swagger.core.v3:swagger-annotations:2.2.41")
+  implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:3.2.0")
+  implementation("io.swagger.core.v3:swagger-annotations:3.0.0")
 
-  implementation("org.springframework.amqp:spring-rabbit:4.1.0")
+  implementation("org.springframework.amqp:spring-rabbit:4.1.2")
 
   implementation("com.github.pukkaone:logback-gelf:1.1.11")
 
   // kostack
-  implementation("io.github.kostack:event-dispatcher:1.2.2")
-  implementation("io.github.kostack:jwt-security:1.0.2")
+  implementation("io.github.kostack:event-dispatcher:1.2.3")
   implementation("io.github.kostack:api-errors:1.0.0")
   implementation("io.github.kostack:database-tools:1.0.3")
-  implementation("io.github.kostack:fixtures:1.0.2")
+  implementation("io.github.kostack:fixtures:1.1.0")
+  implementation("io.github.kostack:jwt-security:2.0.0-beta-7")
 
   testImplementation("org.springframework.boot:spring-boot-starter-test")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-  testImplementation("io.projectreactor:reactor-test:3.8.0")
-  testImplementation("org.awaitility:awaitility:4.2.0")
+  testImplementation("io.projectreactor:reactor-test:3.8.8")
+  testImplementation("org.awaitility:awaitility:4.3.0")
   testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
   testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
   testImplementation("com.ninja-squad:springmockk:5.0.1")
-  testImplementation("io.mockk:mockk:1.13.10")
-}
-
-kotlin {
-  compilerOptions {
-    freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
-  }
+  testImplementation("io.mockk:mockk:1.14.11")
 }
 
 spotless {
@@ -166,6 +163,7 @@ tasks.register<Exec>("runJar") {
         .get()
         .executablePath.asFile.absolutePath
     args(
+      "--enable-native-access=ALL-UNNAMED",
       "-jar",
       bootJar
         .get()
@@ -187,7 +185,7 @@ tasks.withType<Test> {
     events("passed", "skipped", "failed")
     showStandardStreams = true
   }
-  jvmArgs("-XX:+EnableDynamicAgentLoading")
+  jvmArgs("-XX:+EnableDynamicAgentLoading", "--enable-native-access=ALL-UNNAMED")
 }
 
 val coverageExclusions =
@@ -229,5 +227,5 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
 }
 
 tasks.named("check") {
-  dependsOn("jacocoTestCoverageVerification", "spotlessCheck")
+  dependsOn("spotlessCheck", "jacocoTestReport", "jacocoTestCoverageVerification")
 }

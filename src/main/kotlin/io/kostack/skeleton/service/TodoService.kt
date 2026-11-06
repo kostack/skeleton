@@ -26,14 +26,12 @@ class TodoService(
   suspend fun create(
     todoRequest: TodoCreateRequest,
     user: User
-  ) {
+  ): Todo {
     val todo = Todo(id = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
-    todoRepository.save(todo)
+    return todoRepository.save(todo)
   }
 
-  suspend fun update(todo: Todo) {
-    todoRepository.save(todo)
-  }
+  suspend fun update(todo: Todo): Todo = todoRepository.save(todo)
 
   suspend fun list(
     pageable: Pageable,

@@ -11,16 +11,9 @@ import java.time.Instant
 @Serializable
 @Document("todos")
 data class Todo(
-  @Id
-  val id: String,
-  @Indexed(unique = true)
-  val title: String,
-  @Indexed
-  val completed: Boolean = false,
-  @Indexed
-  @Contextual
-  @CreatedDate
-  val createdAt: Instant = Instant.now(),
-  @Indexed
-  val createdBy: String
+  @Id val id: String,
+  @Indexed(unique = true) val title: String,
+  @Indexed val completed: Boolean = false,
+  @Indexed @Contextual @CreatedDate val createdAt: Instant = Instant.now(),
+  @Indexed val createdBy: String
 )

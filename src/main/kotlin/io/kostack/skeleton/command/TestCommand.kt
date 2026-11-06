@@ -3,17 +3,20 @@ package io.kostack.skeleton.command
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.cloud.stream.function.StreamBridge
-import org.springframework.shell.standard.ShellComponent
-import org.springframework.shell.standard.ShellMethod
-import org.springframework.shell.standard.ShellOption
+import org.springframework.shell.core.command.annotation.Command
+import org.springframework.shell.core.command.annotation.Option
+import org.springframework.stereotype.Component
 
-@ShellComponent
+@Component
 class TestCommand(
   val streamBridge: StreamBridge
 ) {
-  @ShellMethod(key = ["test"], value = "Test command")
+  @Command(
+    name = ["test"],
+    description = "Test command"
+  )
   fun test(
-    @ShellOption(defaultValue = "") arg: String
+    @Option(defaultValue = "") arg: String
   ) {
     log.info("Test command called with argument: $arg")
     streamBridge.send("supplier-out-0", "hello from spring-cloud-stream")

@@ -1,11 +1,11 @@
 spring:
   main:
     web-application-type: none
-  logging:
-    level:
-      io.kostack: WARN
-      org:
-        springframework:
-          security: WARN
-          data:
-            mongodb: WARN
+logging:
+  level:
+    io.kostack: WARN
+    org:
+      springframework:
+        security: WARN
+        data:
+          mongodb: WARN
