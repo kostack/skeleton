@@ -46,8 +46,14 @@ cp docker/.env.dist docker/.env
 | `RABBITMQ_USER` | `guest` | RabbitMQ user |
 | `RABBITMQ_PASS` | `guest` | RabbitMQ password |
 | `RABBITMQ_PORT` | `5672` | RabbitMQ AMQP port |
-| `JWT_PRIVATE_KEY` | `src/main/resources/jwt/private.pem` | RSA private-key path |
-| `JWT_PUBLIC_KEY` | `src/main/resources/jwt/public.pem` | RSA public-key path |
+| `BASIC_AUTH_USER` | `staging` | Swagger HTTP Basic username |
+| `BASIC_AUTH_PASSWORD` | `set_pass` | Swagger HTTP Basic password; replace the template value |
+| `PROBE_HEADER` | `x-k8s` | Required actuator request header name |
+| `PROBE_VALUE` | `set_value` | Required actuator header value; replace the template value |
+| `JWT_PRIVATE_KEY` | Base64-encoded PEM | PKCS#8 RSA private key for signing tokens |
+| `JWT_PUBLIC_KEY` | Base64-encoded PEM | X.509 RSA public key for validating tokens |
+
+The template currently names the JWT variables `JWT_PRIVATE_KEY_NEW` and `JWT_PUBLIC_KEY_NEW`. Rename them to `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` in `docker/.env` to match `application.yml`, then populate them as described below.
 
 Create the MySQL database before starting the service:
 
@@ -59,7 +65,7 @@ Flyway applies migrations from `src/main/resources/db/migration` when the applic
 
 ### How to generate JWT keys
 
-Create a local RSA key pair at the paths used by `docker/.env.dist`:
+Create a local RSA key pair:
 
 ```bash
 mkdir -p src/main/resources/jwt
@@ -68,9 +74,16 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
 openssl rsa -pubout \
   -in src/main/resources/jwt/private.pem \
   -out src/main/resources/jwt/public.pem
+
+base64 < src/main/resources/jwt/private.pem | tr -d '\n'
+printf '\n'
+base64 < src/main/resources/jwt/public.pem | tr -d '\n'
+printf '\n'
 ```
 
-Keep private keys out of version control. In deployed environments, mount keys or provide paths through secret management.
+Copy the first Base64 output into `JWT_PRIVATE_KEY` and the second into `JWT_PUBLIC_KEY` in `docker/.env`. Both values encode the entire PEM file, including its header and footer, on a single line. The application expects encoded key contents rather than file paths.
+
+Keep private keys and encoded private-key values out of version control. In deployed environments, supply these values through secret management.
 
 ## How to run the service
 
@@ -133,24 +146,21 @@ With the `dev` or `staging` profile, open:
 http://localhost:8080/docs
 ```
 
-Swagger resources use HTTP Basic authentication:
+Swagger resources use HTTP Basic authentication with `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` from your environment.
 
-- Username: `staging`
-- Password: `z3xafXjfgUpN`
-
-The API itself does not use these credentials. Routes under `/api/**` require a valid JWT using the configured authorization header, normally:
+Routes under `/api/**` require a valid JWT. The current configuration uses the `x-auth` header with an empty prefix:
 
 ```http
-Authorization: Bearer <token>
+x-auth: <token>
 ```
 
 Example requests:
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
+curl -H "x-auth: $TOKEN" \
   http://localhost:8080/api/me
 
-curl -G -H "Authorization: Bearer $TOKEN" \
+curl -G -H "x-auth: $TOKEN" \
   --data-urlencode "completed=false" \
   --data-urlencode "sort=title,desc" \
   http://localhost:8080/api/todos
@@ -158,15 +168,24 @@ curl -G -H "Authorization: Bearer $TOKEN" \
 
 Tokens may also be supplied through the `token` query parameter, as enabled in `application.yml`.
 
+Tokens must match the configured trusted issuer (`auth.example.io`), audience (`kostack`), and signature algorithm (`RS512`). The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity or creates an in-memory user when no database record exists; roles come from the token in either case.
+
+| Endpoint | Behavior | Access |
+| --- | --- | --- |
+| `GET /api/me` | Returns the current user | Requires `ROLE_ADMIN` |
+| `GET /api/todos` | Returns paginated todos created by the current user | Requires an authenticated user |
+
+The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Swagger's authorization controls.
+
 ## How to call actuator endpoints
 
 The service exposes `health`, `info`, and `metrics`. Actuator requests require the configured probe header:
 
 ```bash
-curl -H "x-k8s: secret" http://localhost:8080/actuator/health
+curl -H "${PROBE_HEADER}: ${PROBE_VALUE}" http://localhost:8080/actuator/health
 ```
 
-Do not retain the example Swagger password or probe secret in a production application. Move them to environment-backed configuration before deployment.
+Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the same values configured for the application. Replace the template Swagger password and probe value before deployment.
 
 ## How to run the shell command
 
@@ -186,7 +205,9 @@ The command sends a message through the `supplier-out-0` binding to `demo.queue`
 
 ## How to run tests and quality checks
 
-Tests use the same infrastructure and JWT environment variables as local development. Run the complete test suite with:
+Tests use the configured MySQL, MongoDB, RabbitMQ, and JWT environment variables. Controller integration tests clear application tables and load fixtures, including purging fixture data in the configured databases. Use dedicated test databases and override `MYSQL_DB` and `MONGO_URI` in the process environment before running them; `application-test.yml` does not configure separate databases.
+
+Run the complete test suite with:
 
 ```bash
 ./gradlew test
@@ -221,17 +242,14 @@ Build the application JAR first, then build the image from the repository root:
 docker build -f docker/Dockerfile -t skeleton-service .
 ```
 
-The Dockerfile expects these key files to exist while building:
+The Dockerfile copies the JAR and startup script; JWT keys are supplied as encoded environment values at runtime.
 
-```text
-src/main/resources/jwt/private.pem
-src/main/resources/jwt/prod/public.pem
-```
+The supplied `docker/prod-compose.yml` is a deployment template. Replace `your-image`, select the intended Spring profile (the template uses `dev`), and add `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `PROBE_HEADER`, and `PROBE_VALUE` to the backend's `environment` mapping. Provide all referenced variables, including the encoded JWT keys, and ensure the container can reach MySQL, MongoDB, and RabbitMQ. Hostnames such as `localhost` inside the container refer to the container itself.
 
-The supplied `docker/prod-compose.yml` is a deployment template. Replace `your-image`, provide all referenced environment variables, and ensure the container can reach MySQL, MongoDB, and RabbitMQ before running it:
+Pass the environment file explicitly when starting Compose from the repository root:
 
 ```bash
-docker compose -f docker/prod-compose.yml up
+docker compose --env-file docker/.env -f docker/prod-compose.yml up
 ```
 
 ## Project structure

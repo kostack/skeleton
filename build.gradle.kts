@@ -19,6 +19,7 @@ val dotenv: Dotenv =
 
 plugins {
   kotlin("jvm") version "2.4.21"
+  kotlin("kapt") version "2.3.0"
   kotlin("plugin.spring") version "2.4.21"
   kotlin("plugin.serialization") version "2.4.21"
   id("org.springframework.boot") version "4.1.2"
@@ -91,7 +92,7 @@ dependencies {
   implementation("io.github.kostack:api-errors:1.0.0")
   implementation("io.github.kostack:database-tools:1.0.3")
   implementation("io.github.kostack:fixtures:1.1.0")
-  implementation("io.github.kostack:jwt-security:2.0.0-beta-7")
+  implementation("io.github.kostack:jwt-security:2.0.0-beta-8")
 
   testImplementation("org.springframework.boot:spring-boot-starter-test")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
