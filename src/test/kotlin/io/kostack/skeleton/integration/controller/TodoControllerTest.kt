@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 
 class TodoControllerTest : BaseControllerIntegrationTest() {
   @Test
-  @Order(2)
+  @Order(1)
   fun `list todos`() =
     runTest {
       val token = accessToken("admin-1")

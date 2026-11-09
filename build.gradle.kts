@@ -10,12 +10,30 @@ buildscript {
   }
 }
 
+val springProfile =
+  providers
+    .gradleProperty("springProfile")
+    .orElse(providers.environmentVariable("SPRING_PROFILES_ACTIVE"))
+    .getOrElse("dev")
+
+val envFilename =
+  if (file("docker/.env.$springProfile").isFile) {
+    ".env.$springProfile"
+  } else {
+    ".env"
+  }
+
 val dotenv: Dotenv =
   Dotenv
     .configure()
-    .directory("docker")
+    .directory(file("docker").absolutePath)
+    .filename(envFilename)
     .ignoreIfMissing()
     .load()
+
+val applicationEnvironment =
+  dotenv.entries().associate { it.key to it.value } +
+    ("SPRING_PROFILES_ACTIVE" to springProfile)
 
 plugins {
   kotlin("jvm") version "2.4.21"
@@ -138,7 +156,7 @@ tasks.named<BootJar>("bootJar") {
 }
 
 tasks.named<BootRun>("bootRun") {
-  dotenv.entries().forEach { entry -> environment(entry.key, entry.value) }
+  environment(applicationEnvironment)
 }
 
 tasks.register<Exec>("runJar") {
@@ -148,8 +166,7 @@ tasks.register<Exec>("runJar") {
   val bootJar = tasks.named<BootJar>("bootJar")
   dependsOn(bootJar)
 
-  val envVars = dotenv.entries().associate { it.key to it.value }
-  environment(envVars)
+  environment(applicationEnvironment)
 
   val javaLauncher =
     javaToolchains.launcherFor {
@@ -181,7 +198,7 @@ tasks.register<Exec>("runJar") {
 
 tasks.withType<Test> {
   useJUnitPlatform()
-  dotenv.entries().forEach { entry -> environment(entry.key, entry.value) }
+  environment(applicationEnvironment)
   testLogging {
     events("passed", "skipped", "failed")
     showStandardStreams = true
