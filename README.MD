@@ -33,7 +33,9 @@ Copy the environment template:
 cp docker/.env.dist docker/.env
 ```
 
-`bootRun`, `runJar`, and the test tasks automatically load variables from `docker/.env`. Configure these values for your local services:
+`bootRun`, `runJar`, and the test tasks automatically load variables from a file in `docker/`. Gradle uses `docker/.env.<profile>` when it exists for the active Spring profile (for example `docker/.env.staging`), and falls back to `docker/.env` otherwise. The profile comes from the `springProfile` Gradle property or `SPRING_PROFILES_ACTIVE`, and defaults to `dev`. Use a single profile name; a list such as `dev,local` is not resolved to a profile-specific file.
+
+Configure these values for your local services:
 
 | Variable | Example | Purpose |
 | --- | --- | --- |
@@ -53,7 +55,7 @@ cp docker/.env.dist docker/.env
 | `JWT_PRIVATE_KEY` | Base64-encoded PEM | PKCS#8 RSA private key for signing tokens |
 | `JWT_PUBLIC_KEY` | Base64-encoded PEM | X.509 RSA public key for validating tokens |
 
-The template currently names the JWT variables `JWT_PRIVATE_KEY_NEW` and `JWT_PUBLIC_KEY_NEW`. Rename them to `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` in `docker/.env` to match `application.yml`, then populate them as described below.
+Populate `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` as described below.
 
 Create the MySQL database before starting the service:
 
@@ -65,23 +67,27 @@ Flyway applies migrations from `src/main/resources/db/migration` when the applic
 
 ### How to generate JWT keys
 
-Create a local RSA key pair:
+Create a local RSA key pair in a temporary directory outside the project:
 
 ```bash
-mkdir -p src/main/resources/jwt
+KEY_DIR="$(mktemp -d)"
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
-  -out src/main/resources/jwt/private.pem
+  -out "$KEY_DIR/private.pem"
 openssl rsa -pubout \
-  -in src/main/resources/jwt/private.pem \
-  -out src/main/resources/jwt/public.pem
+  -in "$KEY_DIR/private.pem" \
+  -out "$KEY_DIR/public.pem"
 
-base64 < src/main/resources/jwt/private.pem | tr -d '\n'
+base64 < "$KEY_DIR/private.pem" | tr -d '\n'
 printf '\n'
-base64 < src/main/resources/jwt/public.pem | tr -d '\n'
+base64 < "$KEY_DIR/public.pem" | tr -d '\n'
 printf '\n'
+
+rm -r "$KEY_DIR"
 ```
 
-Copy the first Base64 output into `JWT_PRIVATE_KEY` and the second into `JWT_PUBLIC_KEY` in `docker/.env`. Both values encode the entire PEM file, including its header and footer, on a single line. The application expects encoded key contents rather than file paths.
+Copy the first Base64 output into `JWT_PRIVATE_KEY` and the second into `JWT_PUBLIC_KEY` in `docker/.env`. Both values encode the entire PEM file, including its header and footer, on a single line. The application expects encoded key contents rather than file paths, so the `.pem` files are not needed afterwards.
+
+Do not place key files under `src/main/resources`: everything there is packaged into `app.jar` and the Docker image, even when Git ignores it.
 
 Keep private keys and encoded private-key values out of version control. In deployed environments, supply these values through secret management.
 
@@ -168,7 +174,14 @@ curl -G -H "x-auth: $TOKEN" \
 
 Tokens may also be supplied through the `token` query parameter, as enabled in `application.yml`.
 
-Tokens must match the configured trusted issuer (`auth.example.io`), audience (`kostack`), and signature algorithm (`RS512`). The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity or creates an in-memory user when no database record exists; roles come from the token in either case.
+Tokens must use the audience `kostack`, the `RS512` signature algorithm, and one of the trusted issuers configured in `application.yml`:
+
+| Issuer | Verified with |
+| --- | --- |
+| `local` | `JWT_PUBLIC_KEY`; this is also the issuer the service signs its own tokens with |
+| `user-service.local` | The JWKS at `http://user-service.local/.well-known/jwks.json` |
+
+For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity or creates an in-memory user when no database record exists; roles come from the token in either case.
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
@@ -187,7 +200,7 @@ curl -H "${PROBE_HEADER}: ${PROBE_VALUE}" http://localhost:8080/actuator/health
 
 Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the same values configured for the application. Replace the template Swagger password and probe value before deployment.
 
-## How to run the shell command
+## How to run shell commands
 
 The `shell` profile disables the web server and starts Spring Shell:
 
@@ -195,7 +208,24 @@ The `shell` profile disables the web server and starts Spring Shell:
 ./gradlew bootRun --args='--spring.profiles.active=shell'
 ```
 
-At the shell prompt, publish a demo message to the configured RabbitMQ destination with:
+Commands print their results directly to the terminal.
+
+### Generate a local token
+
+```text
+generate-token -u admin-1 -r ROLE_ADMIN
+```
+
+The command signs a token with the `local` issuer and prints only the token, so it can be copied directly.
+
+| Option | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `-u`, `--identity` | Yes | — | Identity of an existing user; the fixtures create `admin-1` |
+| `-r`, `--role` | No | `ROLE_CUSTOMER` | Role written to the token's `roles` claim |
+
+The command fails with `User not found` if the identity does not exist in the database.
+
+### Publish a demo message
 
 ```text
 test hello
@@ -205,7 +235,9 @@ The command sends a message through the `supplier-out-0` binding to `demo.queue`
 
 ## How to run tests and quality checks
 
-Tests use the configured MySQL, MongoDB, RabbitMQ, and JWT environment variables. Controller integration tests clear application tables and load fixtures, including purging fixture data in the configured databases. Use dedicated test databases and override `MYSQL_DB` and `MONGO_URI` in the process environment before running them; `application-test.yml` does not configure separate databases.
+Tests use the configured MySQL, MongoDB, RabbitMQ, and JWT environment variables. Controller integration tests clear application tables and load fixtures, including purging fixture data in the configured databases. Use dedicated test databases and override `MYSQL_DB` and `MONGO_URI` in the process environment before running them.
+
+Tests run with the same Spring profile as `bootRun` (`dev` by default), because Gradle passes `SPRING_PROFILES_ACTIVE` to the test JVM. `application-test.yml` is not applied unless you select it, for example with `./gradlew test -PspringProfile=test`.
 
 Run the complete test suite with:
 
@@ -213,11 +245,17 @@ Run the complete test suite with:
 ./gradlew test
 ```
 
-Run formatting, tests, and the minimum 50% JaCoCo coverage verification with:
+`test` always generates the JaCoCo coverage report afterwards, including when tests fail.
+
+Run formatting, tests, and coverage verification with:
 
 ```bash
 ./gradlew check
 ```
+
+`check` runs in this order: the Spotless formatting check, the tests, the coverage report, and the coverage verification. A formatting error fails the build before the slow test suite starts, and the coverage report is available even when the coverage threshold is not met.
+
+The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are configured in `settings.gradle.kts`.
 
 Other useful tasks:
 
@@ -225,6 +263,7 @@ Other useful tasks:
 ./gradlew spotlessCheck       # verify Kotlin and Gradle Kotlin formatting
 ./gradlew spotlessApply       # apply formatting fixes
 ./gradlew jacocoTestReport    # generate HTML and XML coverage reports
+./gradlew installGitHook      # install the pre-commit formatting hook
 ```
 
 The HTML coverage report is written to:
@@ -232,6 +271,16 @@ The HTML coverage report is written to:
 ```text
 build/reports/jacoco/test/html/index.html
 ```
+
+### How to install the pre-commit hook
+
+```bash
+./gradlew installGitHook
+```
+
+The task copies `scripts/pre-commit.sh` into the repository's Git hooks directory as `pre-commit`. It works in Git worktrees and respects a custom `core.hooksPath`. Before each commit, the hook runs `spotlessCheck`; if formatting fails, it runs `spotlessApply` and aborts the commit so you can review and stage the fixes.
+
+Run the task again after `scripts/pre-commit.sh` changes. It overwrites any existing `pre-commit` hook.
 
 ## How to build and run with Docker
 
@@ -267,7 +316,6 @@ src/main/kotlin/io/kostack/skeleton/
 
 src/main/resources/
 ├── db/migration/       Flyway SQL migrations
-├── jwt/                Local key-file location (keys are not committed)
 └── application*.yml    Base and profile-specific configuration
 ```
 
@@ -279,4 +327,4 @@ src/main/resources/
 4. Replace all embedded development credentials and probe values with external configuration.
 5. Update the RabbitMQ bindings and consumer functions for your service events.
 6. Add tests for new authorization rules and API behavior.
-7. Run `./gradlew check` before committing.
+7. Install the pre-commit hook with `./gradlew installGitHook`, and run `./gradlew check` before committing.

@@ -1,10 +1,8 @@
 package io.kostack.skeleton.command
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.cloud.stream.function.StreamBridge
+import org.springframework.shell.core.command.annotation.Argument
 import org.springframework.shell.core.command.annotation.Command
-import org.springframework.shell.core.command.annotation.Option
 import org.springframework.stereotype.Component
 
 @Component
@@ -16,13 +14,9 @@ class TestCommand(
     description = "Test command"
   )
   fun test(
-    @Option(defaultValue = "") arg: String
+    @Argument(index = 0, description = "Free-text argument echoed back") arg: String?
   ) {
-    log.info("Test command called with argument: $arg")
-    streamBridge.send("supplier-out-0", "hello from spring-cloud-stream")
-  }
-
-  companion object {
-    val log: Logger = LoggerFactory.getLogger(this::class.java)
+    val sent = streamBridge.send("supplier-out-0", "hello from spring-cloud-stream")
+    println("Test command called with argument: ${arg.orEmpty()} (message sent: $sent)")
   }
 }
