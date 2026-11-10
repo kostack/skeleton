@@ -25,6 +25,41 @@ Install or provide:
 
 The repository includes the Gradle wrapper, so a separate Gradle installation is not required.
 
+## How to develop in a devcontainer
+
+As an alternative to installing JDK 25 locally, open the project in a devcontainer (IntelliJ IDEA, VS Code, or the `devcontainer` CLI). The container provides Ubuntu 24.04 with JDK 25 (Temurin).
+
+MySQL, MongoDB, and RabbitMQ are not part of the devcontainer. They are shared with other services and must already be running on the host. The container uses host networking, so:
+
+- the `localhost` values in `docker/.env` reach the shared services unchanged, and
+- the application listens directly on the host, on `SERVER_PORT` (default `8080`). If another application already uses that port, set a different `SERVER_PORT` in `docker/.env`.
+
+Host networking works natively on Linux. Docker Desktop for macOS and Windows requires host networking to be enabled in its settings.
+
+On first creation, `.devcontainer/post-create.sh`:
+
+1. Creates `docker/.env` from `docker/.env.dist` with a freshly generated JWT key pair, if `docker/.env` does not exist yet. An existing file is left unchanged.
+2. Downloads Gradle and the project dependencies.
+
+Then run `./gradlew bootRun` or `./gradlew test` inside the container as usual.
+
+### How to open the devcontainer in IntelliJ IDEA
+
+This requires IntelliJ IDEA Ultimate (or another paid JetBrains IDE) and a running local Docker.
+
+1. Open `.devcontainer/devcontainer.json`.
+2. Click the container icon in the gutter next to the opening `{` and select **Create Dev Container and Mount Sources…**. Use **Mount Sources**, not **Clone Sources**: mounting uses your existing project directory, including `docker/.env` and `.git`, whereas cloning creates a fresh copy without them.
+3. Confirm IntelliJ IDEA as the IDE backend; it is preselected by `customizations.jetbrains.backend`.
+4. Wait for the first build, which installs JDK 25, runs `post-create.sh`, and downloads dependencies. A JetBrains Client window then opens, connected to the IDE running inside the container.
+
+To reopen it later, use **Remote Development → Dev Containers** on the Welcome screen. This reuses the existing container instead of rebuilding it.
+
+Start the application with the Gradle `bootRun` task (Gradle tool window → **Tasks → application → bootRun**, or `./gradlew bootRun` in the terminal). Do not use the run icon next to `main()` in `Application.kt`: only the Gradle tasks load `docker/.env`, so a plain Spring Boot or Kotlin run configuration starts without the required variables and fails. To use such a run configuration anyway, add the variables from `docker/.env` to its **Environment variables** field.
+
+Because the container uses host networking, the application is reachable from the host browser at `http://localhost:<SERVER_PORT>` without port forwarding.
+
+The Gradle caches live in Docker volumes. The container's project `.gradle` directory is kept separate from the host's, so Gradle in the container and on the host never wait for each other's locks.
+
 ## How to configure the application
 
 Copy the environment template:
@@ -39,6 +74,7 @@ Configure these values for your local services:
 
 | Variable | Example | Purpose |
 | --- | --- | --- |
+| `SERVER_PORT` | `8080` | HTTP port of the application; change it if another local app uses `8080` |
 | `MONGO_URI` | `mongodb://localhost:27017/skeleton?authSource=admin` | MongoDB connection URI |
 | `MYSQL_URL` | `mysql://localhost:3306` | MySQL host URL without the database name |
 | `MYSQL_DB` | `skeleton` | MySQL database/schema |
@@ -99,7 +135,7 @@ Start the required databases and RabbitMQ, then run:
 ./gradlew bootRun
 ```
 
-The default Spring profile is `dev`, and the HTTP server listens on port `8080` unless overridden.
+The default Spring profile is `dev`, and the HTTP server listens on `SERVER_PORT` from `docker/.env` (default `8080`).
 
 ### How to run the executable JAR
 
@@ -116,10 +152,11 @@ Use the custom `runJar` task to build and immediately start the executable Sprin
 3. Starts the JAR with the Java 25 toolchain.
 4. Connects standard input, output, and error to the current terminal.
 
-Set the active Spring profile in the environment when running the task:
+Set the active Spring profile in the environment when running the task, or pass application arguments with `--args` as with `bootRun`:
 
 ```bash
 SPRING_PROFILES_ACTIVE=staging ./gradlew runJar
+./gradlew runJar --args='--spring.profiles.active=shell,cloud-stream'
 ```
 
 You can also build the JAR without starting it:
@@ -208,6 +245,8 @@ The `shell` profile disables the web server and starts Spring Shell:
 
 ```bash
 ./gradlew bootRun --args='--spring.profiles.active=shell,cloud-stream'
+# or from the executable JAR
+./gradlew runJar --args='--spring.profiles.active=shell,cloud-stream'
 ```
 
 Commands print their results directly to the terminal. The `cloud-stream` profile is needed for `test` to publish to `demo.queue`; `generate-token` works without it.

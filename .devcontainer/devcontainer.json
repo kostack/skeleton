@@ -1,0 +1,45 @@
+{
+  "name": "${localWorkspaceFolderBasename}",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "remoteUser": "vscode",
+  // Host networking: MySQL, MongoDB and RabbitMQ are shared services running on the host,
+  // so the localhost values in docker/.env work unchanged, and the app's port 8080 is the host's.
+  "runArgs": ["--network=host"],
+  // Volumes are per container (devcontainerId): with host networking, containers sharing a Gradle
+  // home would reuse each other's daemons, which cannot see the other container's workspace path.
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-gradle-cache-${devcontainerId},target=/home/vscode/.gradle,type=volume",
+    // Separate project cache, so Gradle in the container never shares locks with a Gradle daemon on the host
+    "source=${localWorkspaceFolderBasename}-project-gradle-cache-${devcontainerId},target=${containerWorkspaceFolder}/.gradle,type=volume"
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "25",
+      "jdkDistro": "tem",
+      "installGradle": false
+    }
+  },
+  // Applies to every JVM in the container, including IntelliJ's Gradle client (external-system-rt),
+  // which ignores org.gradle.jvmargs. Silences the native-access and sun.misc.Unsafe warnings from
+  // Gradle's native-platform and IntelliJ's kryo; the JVM prints one "Picked up JDK_JAVA_OPTIONS" note instead.
+  "containerEnv": {
+    "JDK_JAVA_OPTIONS": "--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow"
+  },
+  "postCreateCommand": "bash ${containerWorkspaceFolder}/.devcontainer/post-create.sh",
+  "customizations": {
+    "jetbrains": {
+      "settings": {
+        "com.intellij:app:HttpConfigurable.use_proxy_pac": true
+      },
+      "backend": "IntelliJ",
+      // JetBrains AI Assistant, e.g. for generating commit messages in the Commit tool window
+      "plugins": ["com.intellij.ml.llm"]
+    },
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-gradle"
+      ]
+    }
+  }
+}

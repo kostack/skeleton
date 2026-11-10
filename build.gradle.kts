@@ -119,6 +119,7 @@ dependencies {
   testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
   testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
   testImplementation("io.mockk:mockk:1.14.11")
+  testImplementation(kotlin("test"))
 }
 
 spotless {
@@ -162,38 +163,19 @@ tasks.named<BootRun>("bootRun") {
   environment(applicationEnvironment)
 }
 
-tasks.register<Exec>("runJar") {
+// JavaExec (not Exec) so that --args works as with bootRun, e.g. --args='--spring.profiles.active=shell'.
+// The boot jar is the only classpath entry and its JarLauncher starts it, as `java -jar` would.
+tasks.register<JavaExec>("runJar") {
   description = "Builds and runs the executable application jar"
   group = "application"
 
-  val bootJar = tasks.named<BootJar>("bootJar")
-  dependsOn(bootJar)
+  classpath(tasks.named<BootJar>("bootJar"))
+  mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
+  jvmArgs("--enable-native-access=ALL-UNNAMED")
 
   environment(applicationEnvironment)
 
-  val javaLauncher = javaToolchains.launcherFor(java.toolchain)
-
-  inputs.file(bootJar.flatMap { it.archiveFile })
-
-  doFirst {
-    executable =
-      javaLauncher
-        .get()
-        .executablePath.asFile.absolutePath
-    args(
-      "--enable-native-access=ALL-UNNAMED",
-      "-jar",
-      bootJar
-        .get()
-        .archiveFile
-        .get()
-        .asFile.absolutePath
-    )
-  }
-
   standardInput = System.`in`
-  standardOutput = System.out
-  errorOutput = System.err
 }
 
 tasks.withType<Test> {

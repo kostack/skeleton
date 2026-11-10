@@ -14,6 +14,8 @@ cors:
   allowed-headers:
     - "*"
   allow-credentials: false
+server:
+  port: ${SERVER_PORT:8080}
 spring:
   profiles:
     default: dev

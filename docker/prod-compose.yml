@@ -3,7 +3,7 @@ services:
     container_name: backend
     image: your-image
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
 
       MONGO_URI: ${MONGO_URI}
 
