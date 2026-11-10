@@ -36,10 +36,10 @@ val applicationEnvironment =
     ("SPRING_PROFILES_ACTIVE" to springProfile)
 
 plugins {
-  kotlin("jvm") version "2.4.21"
-  kotlin("kapt") version "2.4.0"
-  kotlin("plugin.spring") version "2.4.21"
-  kotlin("plugin.serialization") version "2.4.21"
+  // Kotlin plugin versions are managed in settings.gradle.kts
+  kotlin("jvm")
+  kotlin("plugin.spring")
+  kotlin("plugin.serialization")
   id("org.springframework.boot") version "4.1.2"
   id("io.spring.dependency-management") version "1.1.7"
   id("com.diffplug.spotless") version "8.11.0"
@@ -53,6 +53,12 @@ description = "Skeleton project for Spring Boot"
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(25)
+  }
+}
+
+kotlin {
+  compilerOptions {
+    freeCompilerArgs.add("-Xjsr305=strict")
   }
 }
 
@@ -70,7 +76,7 @@ dependencies {
   // Kotlin
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
   implementation("org.jetbrains.kotlin:kotlin-reflect")
   implementation("tools.jackson.module:jackson-module-kotlin")
 
@@ -80,41 +86,37 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("org.springframework.cloud:spring-cloud-starter-stream-rabbit")
-  implementation("org.springframework.boot:spring-boot-starter-logging")
   implementation("org.springframework.boot:spring-boot-starter-actuator")
   implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
   implementation("org.springframework.shell:spring-shell-starter")
 
   // R2DBC
   implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-  implementation("io.asyncer:r2dbc-mysql")
+  runtimeOnly("io.asyncer:r2dbc-mysql")
 
   // Flyway for database migration
   implementation("org.springframework.boot:spring-boot-starter-flyway")
-  implementation("org.flywaydb:flyway-mysql:12.3.0")
+  implementation("org.flywaydb:flyway-mysql")
 
   // JDBC (required by Flyway) and MySQL driver
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
-  implementation("com.mysql:mysql-connector-j:9.7.0")
+  runtimeOnly("com.mysql:mysql-connector-j")
 
   // open api code generation
   implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:3.2.0")
-  implementation("io.swagger.core.v3:swagger-annotations:3.0.0")
-
-  implementation("org.springframework.amqp:spring-rabbit:4.1.2")
 
   implementation("com.github.pukkaone:logback-gelf:1.1.11")
 
   // kostack
   implementation("io.github.kostack:event-dispatcher:1.2.3")
   implementation("io.github.kostack:api-errors:1.0.0")
-  implementation("io.github.kostack:database-tools:1.0.3")
+  implementation("io.github.kostack:database-tools:1.0.4")
   implementation("io.github.kostack:fixtures:1.1.0")
   implementation("io.github.kostack:jwt-security:2.0.0-beta-8")
 
   testImplementation("org.springframework.boot:spring-boot-starter-test")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-  testImplementation("io.projectreactor:reactor-test:3.8.8")
+  testImplementation("io.projectreactor:reactor-test")
   testImplementation("org.awaitility:awaitility:4.3.0")
   testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
   testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
@@ -133,21 +135,25 @@ spotless {
   }
 }
 
-tasks.register("installGitHook") {
+// Asks git for the hooks directory so worktrees and core.hooksPath are respected
+val gitHooksDir =
+  providers
+    .exec {
+      commandLine("git", "rev-parse", "--path-format=absolute", "--git-path", "hooks")
+      workingDir = layout.projectDirectory.asFile
+    }.standardOutput.asText
+    .map { it.trim() }
+
+tasks.register<Copy>("installGitHook") {
   group = "build setup"
   description = "Installs a git pre-commit hook to enforce formatting rules"
-  doLast {
-    val hookSource = file("scripts/pre-commit")
-    val hooksDir = file(".git/hooks")
-    val hookTarget = hooksDir.resolve("pre-commit")
-    check(hookSource.isFile) { "Git hook source not found: ${hookSource.path}" }
-    check(hooksDir.isDirectory) { "Git hooks directory not found: ${hooksDir.path}" }
 
-    if (!hookTarget.exists()) {
-      hookSource.copyTo(hookTarget, overwrite = false)
-    }
-    hookTarget.setExecutable(true)
-  }
+  val hookScript = layout.projectDirectory.file("scripts/pre-commit.sh")
+  inputs.file(hookScript)
+
+  from(hookScript) { rename { "pre-commit" } }
+  into(gitHooksDir)
+  filePermissions { unix("rwxr-xr-x") }
 }
 
 tasks.named<BootJar>("bootJar") {
@@ -168,10 +174,7 @@ tasks.register<Exec>("runJar") {
 
   environment(applicationEnvironment)
 
-  val javaLauncher =
-    javaToolchains.launcherFor {
-      languageVersion = JavaLanguageVersion.of(25)
-    }
+  val javaLauncher = javaToolchains.launcherFor(java.toolchain)
 
   inputs.file(bootJar.flatMap { it.archiveFile })
 
