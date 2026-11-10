@@ -68,7 +68,7 @@ Copy the environment template:
 cp docker/.env.dist docker/.env
 ```
 
-`bootRun`, `runJar`, and the test tasks automatically load variables from a file in `docker/`. Gradle uses `docker/.env.<profile>` when it exists for the active Spring profile (for example `docker/.env.staging`), and falls back to `docker/.env` otherwise. The profile comes from the `springProfile` Gradle property or `SPRING_PROFILES_ACTIVE`, and defaults to `dev`. Use a single profile name; a list such as `dev,local` is not resolved to a profile-specific file.
+`bootRun` and the test tasks automatically load variables from a file in `docker/`. Gradle uses `docker/.env.<profile>` when it exists for the active Spring profile (for example `docker/.env.staging`), and falls back to `docker/.env` otherwise. The profile comes from the `springProfile` Gradle property or `SPRING_PROFILES_ACTIVE`, and defaults to `dev`. Use a single profile name; a list such as `dev,local` is not resolved to a profile-specific file.
 
 Configure these values for your local services:
 
@@ -139,27 +139,7 @@ The default Spring profile is `dev`, and the HTTP server listens on `SERVER_PORT
 
 ### How to run the executable JAR
 
-Use the custom `runJar` task to build and immediately start the executable Spring Boot JAR:
-
-```bash
-./gradlew runJar
-```
-
-`runJar` performs the following steps:
-
-1. Runs `bootJar` and creates `build/libs/app.jar`.
-2. Loads environment variables from `docker/.env`.
-3. Starts the JAR with the Java 25 toolchain.
-4. Connects standard input, output, and error to the current terminal.
-
-Set the active Spring profile in the environment when running the task, or pass application arguments with `--args` as with `bootRun`:
-
-```bash
-SPRING_PROFILES_ACTIVE=staging ./gradlew runJar
-./gradlew runJar --args='--spring.profiles.active=shell,cloud-stream'
-```
-
-You can also build the JAR without starting it:
+Build the executable Spring Boot JAR and start it with Java 25:
 
 ```bash
 ./gradlew bootJar
@@ -173,8 +153,6 @@ To select another profile:
 ```bash
 SPRING_PROFILES_ACTIVE=staging ./gradlew bootRun
 ```
-
-The RabbitMQ bindings (the `consumer` on `demo.queue`, retries, and the dead-letter queue) belong to the `cloud-stream` profile, defined in the second document of `application.yml`. The `dev`, `staging`, and `test` profiles activate it automatically through a profile group. `production` and `shell` do not; add it explicitly when needed, for example `SPRING_PROFILES_ACTIVE=production,cloud-stream`. Without it, no functions are bound to RabbitMQ.
 
 Available profile-specific configuration files are:
 
@@ -244,20 +222,18 @@ Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the sa
 The `shell` profile disables the web server and starts Spring Shell:
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=shell,cloud-stream'
-# or from the executable JAR
-./gradlew runJar --args='--spring.profiles.active=shell,cloud-stream'
+./gradlew bootRun --args='--spring.profiles.active=shell'
 ```
 
-Gradle connects the application only to pipes, not to a terminal, so the shell started by `bootRun` or `runJar` has no Tab completion, history or line editing. For an interactive session, run the JAR directly in your terminal:
+Gradle connects the application only to pipes, not to a terminal, so the shell started by `bootRun` has no Tab completion, history or line editing. For an interactive session, run the JAR directly in your terminal:
 
 ```bash
 scripts/shell.sh
 ```
 
-The script builds the JAR, loads the variables from `docker/.env` (or `docker/.env.<profile>`), and starts it with the `shell,cloud-stream` profiles; set `SPRING_PROFILES_ACTIVE` to use others.
+The script builds the JAR, loads the variables from `docker/.env.shell` if it exists (otherwise `docker/.env`), and starts it with only the `shell` profile, ignoring any `SPRING_PROFILES_ACTIVE` already set.
 
-Commands print their results directly to the terminal. The `cloud-stream` profile is needed for `test` to publish to `demo.queue`; `generate-token` works without it.
+Commands print their results directly to the terminal.
 
 ### Generate a local token
 

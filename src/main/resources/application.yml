@@ -25,9 +25,10 @@ spring:
       test: cloud-stream
   application:
     name: skeleton-service
+  # The interactive shell prompt runs only with the shell profile (application-shell.yml)
   shell:
     interactive:
-      enabled: true
+      enabled: false
   mongodb:
     uri: ${MONGO_URI}
   r2dbc:

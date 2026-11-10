@@ -160,22 +160,8 @@ tasks.named<BootJar>("bootJar") {
 }
 
 tasks.named<BootRun>("bootRun") {
+  dependsOn(tasks.named<BootJar>("bootJar"))
   environment(applicationEnvironment)
-}
-
-// JavaExec (not Exec) so that --args works as with bootRun, e.g. --args='--spring.profiles.active=shell'.
-// The boot jar is the only classpath entry and its JarLauncher starts it, as `java -jar` would.
-tasks.register<JavaExec>("runJar") {
-  description = "Builds and runs the executable application jar"
-  group = "application"
-
-  classpath(tasks.named<BootJar>("bootJar"))
-  mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
-  jvmArgs("--enable-native-access=ALL-UNNAMED")
-
-  environment(applicationEnvironment)
-
-  standardInput = System.`in`
 }
 
 tasks.withType<Test> {

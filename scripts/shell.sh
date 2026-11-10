@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Starts the application as Spring Shell in the current terminal, with Tab completion, history and
-# line editing. Gradle (runJar, bootRun) only connects the app to pipes, never to a terminal, so
+# line editing. Gradle (bootRun) only connects the app to pipes, never to a terminal, so
 # Spring Shell falls back to a dumb terminal there.
 #
 # Usage: scripts/shell.sh [application arguments]
-# Profiles: SPRING_PROFILES_ACTIVE, default "shell".
+# Always runs with only the "shell" profile; SPRING_PROFILES_ACTIVE from the caller or the env file is ignored.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-profiles="${SPRING_PROFILES_ACTIVE:-shell}"
+profile="shell"
 
-# Same lookup as Gradle: docker/.env.<profile> for the first profile, otherwise docker/.env
-env_file="docker/.env.${profiles%%,*}"
+# Same lookup as Gradle: docker/.env.<profile>, otherwise docker/.env
+env_file="docker/.env.$profile"
 [ -f "$env_file" ] || env_file="docker/.env"
 
 ./gradlew --quiet bootJar
@@ -25,6 +25,6 @@ if [ -f "$env_file" ]; then
   done < "$env_file"
 fi
 
-export SPRING_PROFILES_ACTIVE="$profiles"
+export SPRING_PROFILES_ACTIVE="$profile"
 
 exec java --enable-native-access=ALL-UNNAMED -jar build/libs/app.jar "$@"

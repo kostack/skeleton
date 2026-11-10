@@ -1,6 +1,9 @@
 spring:
   main:
     web-application-type: none
+  shell:
+    interactive:
+      enabled: true
 logging:
   level:
     io.kostack: WARN
