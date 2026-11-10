@@ -249,6 +249,14 @@ The `shell` profile disables the web server and starts Spring Shell:
 ./gradlew runJar --args='--spring.profiles.active=shell,cloud-stream'
 ```
 
+Gradle connects the application only to pipes, not to a terminal, so the shell started by `bootRun` or `runJar` has no Tab completion, history or line editing. For an interactive session, run the JAR directly in your terminal:
+
+```bash
+scripts/shell.sh
+```
+
+The script builds the JAR, loads the variables from `docker/.env` (or `docker/.env.<profile>`), and starts it with the `shell,cloud-stream` profiles; set `SPRING_PROFILES_ACTIVE` to use others.
+
 Commands print their results directly to the terminal. The `cloud-stream` profile is needed for `test` to publish to `demo.queue`; `generate-token` works without it.
 
 ### Generate a local token

@@ -1,6 +1,7 @@
 {
   "name": "${localWorkspaceFolderBasename}",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  // Base image plus extra OS packages, see .devcontainer/Dockerfile
+  "build": { "dockerfile": "Dockerfile" },
   "remoteUser": "vscode",
   // Host networking: MySQL, MongoDB and RabbitMQ are shared services running on the host,
   // so the localhost values in docker/.env work unchanged, and the app's port 8080 is the host's.

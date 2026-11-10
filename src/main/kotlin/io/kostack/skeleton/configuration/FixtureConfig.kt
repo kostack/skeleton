@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 
 @Configuration
-@Profile("dev", "test")
+@Profile("shell", "test")
 class FixtureConfig(
   private val mongodbPurger: MongoDbPurger,
   private val r2dbcDbPurger: R2dbcDbPurger

@@ -1,10 +1,12 @@
 package io.kostack.skeleton.command
 
 import org.springframework.cloud.stream.function.StreamBridge
+import org.springframework.context.annotation.Profile
 import org.springframework.shell.core.command.annotation.Argument
 import org.springframework.shell.core.command.annotation.Command
 import org.springframework.stereotype.Component
 
+@Profile("shell")
 @Component
 class TestCommand(
   val streamBridge: StreamBridge
