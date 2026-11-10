@@ -137,6 +137,8 @@ To select another profile:
 SPRING_PROFILES_ACTIVE=staging ./gradlew bootRun
 ```
 
+The RabbitMQ bindings (the `consumer` on `demo.queue`, retries, and the dead-letter queue) belong to the `cloud-stream` profile, defined in the second document of `application.yml`. The `dev`, `staging`, and `test` profiles activate it automatically through a profile group. `production` and `shell` do not; add it explicitly when needed, for example `SPRING_PROFILES_ACTIVE=production,cloud-stream`. Without it, no functions are bound to RabbitMQ.
+
 Available profile-specific configuration files are:
 
 - `application-test.yml`
@@ -205,10 +207,10 @@ Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the sa
 The `shell` profile disables the web server and starts Spring Shell:
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=shell'
+./gradlew bootRun --args='--spring.profiles.active=shell,cloud-stream'
 ```
 
-Commands print their results directly to the terminal.
+Commands print their results directly to the terminal. The `cloud-stream` profile is needed for `test` to publish to `demo.queue`; `generate-token` works without it.
 
 ### Generate a local token
 
