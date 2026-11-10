@@ -117,10 +117,8 @@ dependencies {
   testImplementation("org.springframework.boot:spring-boot-starter-test")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
   testImplementation("io.projectreactor:reactor-test")
-  testImplementation("org.awaitility:awaitility:4.3.0")
   testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
   testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-  testImplementation("com.ninja-squad:springmockk:5.0.1")
   testImplementation("io.mockk:mockk:1.14.11")
 }
 
@@ -209,12 +207,9 @@ tasks.withType<Test> {
   jvmArgs("-XX:+EnableDynamicAgentLoading", "--enable-native-access=ALL-UNNAMED")
 }
 
-val coverageExclusions =
-  listOf(
-    "**/command/**",
-    "**/configuration/**",
-    "**/fixture/**"
-  )
+// Defined in settings.gradle.kts
+val coverageExclusions: List<String> by extra
+val coverageMinimum: java.math.BigDecimal by extra
 
 tasks.named<JacocoReport>("jacocoTestReport") {
   dependsOn(tasks.named<Test>("test"))
@@ -242,7 +237,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
   )
   violationRules {
     rule {
-      limit { minimum = "0.5".toBigDecimal() }
+      limit { minimum = coverageMinimum }
     }
   }
 }

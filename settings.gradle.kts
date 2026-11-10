@@ -9,3 +9,15 @@ pluginManagement {
 }
 
 rootProject.name = "skeleton"
+
+// JaCoCo coverage settings, read in build.gradle.kts
+gradle.rootProject {
+  extra["coverageMinimum"] = "0.5".toBigDecimal()
+
+  extra["coverageExclusions"] =
+    listOf(
+      "**/command/**",
+      "**/configuration/**",
+      "**/fixture/**"
+    )
+}
