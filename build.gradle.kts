@@ -1,6 +1,5 @@
 import io.github.cdimascio.dotenv.Dotenv
-import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
-import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.gradle.testing.jacoco.tasks.JacocoReportBase
 import org.springframework.boot.gradle.tasks.bundling.BootJar
 import org.springframework.boot.gradle.tasks.run.BootRun
 
@@ -204,24 +203,14 @@ tasks.withType<Test> {
     events("passed", "skipped", "failed")
     showStandardStreams = true
   }
-  jvmArgs("-XX:+EnableDynamicAgentLoading", "--enable-native-access=ALL-UNNAMED")
+  jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off", "--enable-native-access=ALL-UNNAMED")
 }
 
 // Defined in settings.gradle.kts
 val coverageExclusions: List<String> by extra
-val coverageMinimum: java.math.BigDecimal by extra
+val coverageMinimum: BigDecimal by extra
 
-tasks.named<JacocoReport>("jacocoTestReport") {
-  dependsOn(tasks.named<Test>("test"))
-
-  reports {
-    xml.required.set(true)
-    html.required.set(true)
-    csv.required.set(false)
-    html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/test/html"))
-    xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml"))
-  }
-
+tasks.withType<JacocoReportBase>().configureEach {
   classDirectories.setFrom(
     classDirectories.files.map { directory ->
       fileTree(directory) { exclude(coverageExclusions) }
@@ -229,12 +218,20 @@ tasks.named<JacocoReport>("jacocoTestReport") {
   )
 }
 
-tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-  classDirectories.setFrom(
-    classDirectories.files.map { directory ->
-      fileTree(directory) { exclude(coverageExclusions) }
-    }
-  )
+tasks.test {
+  // Fail fast on formatting before running the (slow) test suite
+  mustRunAfter(tasks.spotlessCheck)
+  // Always produce a coverage report, even when tests fail
+  finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+  reports.xml.required.set(true)
+}
+
+tasks.jacocoTestCoverageVerification {
+  // Ensure the report exists when the coverage threshold is not met
+  dependsOn(tasks.jacocoTestReport)
   violationRules {
     rule {
       limit { minimum = coverageMinimum }
@@ -242,6 +239,6 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
   }
 }
 
-tasks.named("check") {
-  dependsOn("spotlessCheck", "jacocoTestReport", "jacocoTestCoverageVerification")
+tasks.check {
+  dependsOn(tasks.jacocoTestCoverageVerification)
 }
