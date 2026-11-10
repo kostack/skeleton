@@ -93,10 +93,10 @@ kostack-security:
       algorithm: RS512
       public-key: ${JWT_PUBLIC_KEY}
     user-service:
-      issuer: user-service.snapflows.local
-      audience: nds
+      issuer: user-service.local
+      audience: kostack
       algorithm: RS512
-      jwk-set-uri: http://user-service.snapflows.local/.well-known/jwks.json
+      jwk-set-uri: http://user-service.local/.well-known/jwks.json
   authorization-header:
     name: x-auth
     prefix: ""
