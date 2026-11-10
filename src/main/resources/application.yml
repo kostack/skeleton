@@ -81,17 +81,22 @@ web-security:
 
 kostack-security:
   issuer:
-    kid: auth.example.io
+    kid: local
     audience: kostack
     private-key: ${JWT_PRIVATE_KEY}
     algorithm-signature: RS512
     expiration-time: 3600
   trusted-issuers:
     local:
-      issuer: auth.example.io
+      issuer: local
       audience: kostack
       algorithm: RS512
       public-key: ${JWT_PUBLIC_KEY}
+    user-service:
+      issuer: user-service.snapflows.local
+      audience: nds
+      algorithm: RS512
+      jwk-set-uri: http://user-service.snapflows.local/.well-known/jwks.json
   authorization-header:
     name: x-auth
     prefix: ""

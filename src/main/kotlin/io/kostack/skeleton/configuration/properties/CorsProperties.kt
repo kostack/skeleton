@@ -1,4 +1,4 @@
-package io.kostack.skeleton.configuration
+package io.kostack.skeleton.configuration.properties
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

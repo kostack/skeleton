@@ -4,12 +4,15 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.kostack.skeleton.controller.dto.todo.response.TodoListResponse
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class TodoControllerTest : BaseControllerIntegrationTest() {
   @Test
   @Order(1)

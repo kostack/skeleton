@@ -1,6 +1,6 @@
 package io.kostack.skeleton
 
-import io.kostack.skeleton.configuration.CorsProperties
+import io.kostack.skeleton.configuration.properties.CorsProperties
 import io.kostack.skeleton.configuration.properties.WebSecurityProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
