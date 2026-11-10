@@ -15,24 +15,20 @@ val springProfile =
     .orElse(providers.environmentVariable("SPRING_PROFILES_ACTIVE"))
     .getOrElse("dev")
 
-val envFilename =
-  if (file("docker/.env.$springProfile").isFile) {
-    ".env.$springProfile"
-  } else {
-    ".env"
-  }
+// Variables from docker/.env.<profile> (or docker/.env) plus SPRING_PROFILES_ACTIVE for the given profile
+fun applicationEnvironmentFor(profile: String): Map<String, String> {
+  val envFilename = if (file("docker/.env.$profile").isFile) ".env.$profile" else ".env"
+  val dotenv =
+    Dotenv
+      .configure()
+      .directory(file("docker").absolutePath)
+      .filename(envFilename)
+      .ignoreIfMissing()
+      .load()
+  return dotenv.entries().associate { it.key to it.value } + ("SPRING_PROFILES_ACTIVE" to profile)
+}
 
-val dotenv: Dotenv =
-  Dotenv
-    .configure()
-    .directory(file("docker").absolutePath)
-    .filename(envFilename)
-    .ignoreIfMissing()
-    .load()
-
-val applicationEnvironment =
-  dotenv.entries().associate { it.key to it.value } +
-    ("SPRING_PROFILES_ACTIVE" to springProfile)
+val applicationEnvironment = applicationEnvironmentFor(springProfile)
 
 plugins {
   // Kotlin plugin versions are managed in settings.gradle.kts
@@ -45,9 +41,7 @@ plugins {
   jacoco
 }
 
-group = "io.kostack"
-version = "1.0.0"
-description = "Skeleton project for Spring Boot"
+version = providers.gradleProperty("projectVersion").getOrElse("1.0.0")
 
 java {
   toolchain {
@@ -164,9 +158,22 @@ tasks.named<BootRun>("bootRun") {
   environment(applicationEnvironment)
 }
 
+// Runs only the RabbitMQ consumers (cloud-consumer profile, no HTTP server), whatever springProfile is set
+tasks.register<BootRun>("bootRunConsumer") {
+  group = "application"
+  description = "Runs the application with only the cloud-consumer profile"
+
+  val bootRun = tasks.named<BootRun>("bootRun")
+  classpath = bootRun.get().classpath
+  mainClass.set(bootRun.flatMap { it.mainClass })
+
+  environment(applicationEnvironmentFor("cloud-consumer"))
+}
+
 tasks.withType<Test> {
   useJUnitPlatform()
-  environment(applicationEnvironment)
+  // Always the test profile: fixtures (FixtureConfig) exist only with shell and test, not with dev
+  environment(applicationEnvironmentFor("test"))
   testLogging {
     events("passed", "skipped", "failed")
     showStandardStreams = true

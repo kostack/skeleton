@@ -160,6 +160,25 @@ Available profile-specific configuration files are:
 - `application-shell.yml`
 - `application-staging.yml`
 - `application-production.yml`
+- `application-cloud-consumer.yml`
+
+### RabbitMQ producers and consumers
+
+Producer bindings are part of `application.yml` and apply to every profile, so `StreamBridge` can publish from any of them. For example, `supplier-out-0` sends to `demo.queue`.
+
+Consumers belong to the `cloud-consumer` profile, defined in `application-cloud-consumer.yml`: the `consumer` function on `demo.queue` (group `skeleton-service`), its retries, and the dead-letter queue. The `consumer` bean in `cloud/stream/Demo.kt` is created only with this profile.
+
+The `dev`, `staging`, and `test` profiles include `cloud-consumer` through a profile group. `shell` and `production` do not, so they publish but never consume. Add the profile explicitly when a deployment must consume, for example `SPRING_PROFILES_ACTIVE=production,cloud-consumer`.
+
+To run only the consumer, without other profiles:
+
+```bash
+./gradlew bootRunConsumer
+```
+
+`application-cloud-consumer.yml` also sets `spring.main.web-application-type: none`, so no HTTP server starts in any profile that includes `cloud-consumer`.
+
+When adding messaging, put new `*-out-*` producer bindings in `application.yml`, and consumer functions with their `*-in-*` bindings in `application-cloud-consumer.yml`.
 
 ## How to use the API documentation
 
@@ -219,12 +238,6 @@ Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the sa
 
 ## How to run shell commands
 
-The `shell` profile disables the web server and starts Spring Shell:
-
-```bash
-./gradlew bootRun --args='--spring.profiles.active=shell'
-```
-
 Gradle connects the application only to pipes, not to a terminal, so the shell started by `bootRun` has no Tab completion, history or line editing. For an interactive session, run the JAR directly in your terminal:
 
 ```bash
@@ -256,13 +269,13 @@ The command fails with `User not found` if the identity does not exist in the da
 test hello
 ```
 
-The command sends a message through the `supplier-out-0` binding to `demo.queue`.
+The command sends a message with `StreamBridge` through the `supplier-out-0` binding to `demo.queue`. The `shell` profile has no consumer; start one with the `cloud-consumer` profile to see the message logged.
 
 ## How to run tests and quality checks
 
 Tests use the configured MySQL, MongoDB, RabbitMQ, and JWT environment variables. Controller integration tests clear application tables and load fixtures, including purging fixture data in the configured databases. Use dedicated test databases and override `MYSQL_DB` and `MONGO_URI` in the process environment before running them.
 
-Tests run with the same Spring profile as `bootRun` (`dev` by default), because Gradle passes `SPRING_PROFILES_ACTIVE` to the test JVM. `application-test.yml` is not applied unless you select it, for example with `./gradlew test -PspringProfile=test`.
+Tests always run with the `test` profile (which also includes `cloud-consumer`), whatever `springProfile` or `SPRING_PROFILES_ACTIVE` is set to; the fixtures they load exist only with the `test` and `shell` profiles. Gradle loads `docker/.env.test` if it exists, otherwise `docker/.env`.
 
 Run the complete test suite with:
 
@@ -336,7 +349,7 @@ docker compose --env-file docker/.env -f docker/prod-compose.yml up
 
 ```text
 src/main/kotlin/io/kostack/skeleton/
-├── cloud/stream/       RabbitMQ consumer configuration
+├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
 ├── command/            Spring Shell commands
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
 ├── controller/         WebFlux REST controllers and DTOs
@@ -356,6 +369,6 @@ src/main/resources/
 2. Replace the example `Todo` domain, fixtures, controllers, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
 4. Replace all embedded development credentials and probe values with external configuration.
-5. Update the RabbitMQ bindings and consumer functions for your service events.
+5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.
 6. Add tests for new authorization rules and API behavior.
 7. Install the pre-commit hook with `./gradlew installGitHook`, and run `./gradlew check` before committing.

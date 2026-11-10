@@ -1,0 +1,24 @@
+spring:
+  main:
+    web-application-type: none
+  cloud:
+    function:
+      definition: consumer
+    stream:
+      bindings:
+        consumer-in-0:
+          destination: demo.queue
+          group: skeleton-service
+          consumer:
+            max-attempts: 3       # retry up to 3 times
+            back-off-initial-interval: 1000 # 1 second
+            back-off-multiplier: 2
+            back-off-max-interval: 5000
+      rabbit:
+        bindings:
+          consumer-in-0:
+            consumer:
+              acknowledge-mode: auto
+              auto-bind-dlq: true
+              prefetch: 50
+              requeue-rejected: false

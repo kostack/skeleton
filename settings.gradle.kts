@@ -10,6 +10,12 @@ pluginManagement {
 
 rootProject.name = "skeleton"
 
+// Project coordinates, applied to the root project
+gradle.rootProject {
+  group = "io.github.kostack"
+  description = "Skeleton project for Spring Boot"
+}
+
 // JaCoCo coverage settings, read in build.gradle.kts
 gradle.rootProject {
   extra["coverageMinimum"] = "0.5".toBigDecimal()
