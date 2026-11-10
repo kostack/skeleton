@@ -318,6 +318,12 @@ docker build -f docker/Dockerfile -t skeleton-service .
 
 The Dockerfile copies the JAR and startup script; JWT keys are supplied as encoded environment values at runtime.
 
+It also copies `scripts/shell.sh`, which starts a second JVM with only the `shell` profile, using the container's environment:
+
+```bash
+docker exec -it <container> scripts/shell.sh
+```
+
 The supplied `docker/prod-compose.yml` is a deployment template. Replace `your-image`, select the intended Spring profile (the template uses `dev`), and add `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `PROBE_HEADER`, and `PROBE_VALUE` to the backend's `environment` mapping. Provide all referenced variables, including the encoded JWT keys, and ensure the container can reach MySQL, MongoDB, and RabbitMQ. Hostnames such as `localhost` inside the container refer to the container itself.
 
 Pass the environment file explicitly when starting Compose from the repository root:
