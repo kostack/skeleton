@@ -241,10 +241,11 @@ Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the sa
 Gradle connects the application only to pipes, not to a terminal, so the shell started by `bootRun` has no Tab completion, history or line editing. For an interactive session, run the JAR directly in your terminal:
 
 ```bash
+./gradlew bootJar
 scripts/shell.sh
 ```
 
-The script builds the JAR, loads the variables from `docker/.env.shell` if it exists (otherwise `docker/.env`), and starts it with only the `shell` profile, ignoring any `SPRING_PROFILES_ACTIVE` already set.
+The script does not build the JAR; run `./gradlew bootJar` (or `bootRun`) after code changes. It loads the variables from `docker/.env.shell` if it exists (otherwise `docker/.env`), and starts it with only the `shell` profile, ignoring any `SPRING_PROFILES_ACTIVE` already set.
 
 Commands print their results directly to the terminal.
 
