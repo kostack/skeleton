@@ -25,6 +25,12 @@ Install or provide:
 
 The repository includes the Gradle wrapper, so a separate Gradle installation is not required.
 
+### Build conventions
+
+The build setup (plugins, Java toolchain, shared dependencies, Spotless, JaCoCo, `bootRun`, `bootRunConsumer`, `installGitHook`) comes from the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugins. `settings.gradle.kts` applies `io.github.kostack.settings`, and `build.gradle.kts` applies `io.github.kostack.spring-service` and adds only what is specific to this service (MongoDB, MySQL/R2DBC, Flyway, logback-gelf). To upgrade the shared setup, change the `io.github.kostack.settings` version in `settings.gradle.kts`.
+
+The plugins are published to Maven Central, which `settings.gradle.kts` lists in its `pluginManagement` repositories.
+
 ## How to develop in a devcontainer
 
 As an alternative to installing JDK 25 locally, open the project in a devcontainer (IntelliJ IDEA, VS Code, or the `devcontainer` CLI). The container provides Ubuntu 24.04 with JDK 25 (Temurin).
@@ -294,7 +300,14 @@ Run formatting, tests, and coverage verification with:
 
 `check` runs in this order: the Spotless formatting check, the tests, the coverage report, and the coverage verification. A formatting error fails the build before the slow test suite starts, and the coverage report is available even when the coverage threshold is not met.
 
-The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are configured in `settings.gradle.kts`.
+The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are defaults of the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugin. This project raises the minimum to 70% and also excludes generated code, in `build.gradle.kts`:
+
+```kotlin
+kostack {
+  coverageMinimum = 0.7
+  coverageExclusions.add("**/generated/**")
+}
+```
 
 Other useful tasks:
 
@@ -317,9 +330,9 @@ build/reports/jacoco/test/html/index.html
 ./gradlew installGitHook
 ```
 
-The task copies `scripts/pre-commit.sh` into the repository's Git hooks directory as `pre-commit`. It works in Git worktrees and respects a custom `core.hooksPath`. Before each commit, the hook runs `spotlessCheck`; if formatting fails, it runs `spotlessApply` and aborts the commit so you can review and stage the fixes.
+The task copies the pre-commit hook bundled with the gradle-conventions plugin into the repository's Git hooks directory as `pre-commit`. To use a custom hook instead, add it as `scripts/pre-commit.sh`. It works in Git worktrees and respects a custom `core.hooksPath`. Before each commit, the hook runs `spotlessCheck`; if formatting fails, it runs `spotlessApply` and aborts the commit so you can review and stage the fixes.
 
-Run the task again after `scripts/pre-commit.sh` changes. It overwrites any existing `pre-commit` hook.
+Run the task again after the hook changes. It overwrites any existing `pre-commit` hook.
 
 ## How to build and run with Docker
 
