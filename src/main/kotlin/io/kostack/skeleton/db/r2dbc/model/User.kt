@@ -10,11 +10,9 @@ import org.springframework.data.relational.core.mapping.Table
 data class User(
   @Id val id: Long? = null,
   override val identity: String,
-  var roles: List<String> = listOf(),
-  @JsonIgnore @Version val version: String? = null
+  val roles: List<String>,
+  @JsonIgnore @Version val version: Long? = null
 ) : JwtUser {
-  fun hasRole(role: String): Boolean = roles.contains(role)
-
   override fun claims(): Map<String, Any> =
     buildMap {
       put("identity", identity)

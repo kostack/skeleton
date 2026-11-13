@@ -8,6 +8,7 @@ description = "Skeleton project for Spring Boot"
 kostack {
   coverageMinimum = 0.7
   coverageExclusions.add("**/generated/**")
+  coverageExclusions.addAll("**/skeleton/Application*.class")
 }
 
 // API docs UI: Scalar instead of Swagger UI (the kostack conventions add the Swagger UI starter)
