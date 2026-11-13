@@ -1,7 +1,7 @@
 package io.kostack.skeleton.db.r2dbc.model
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import io.github.kostack.jwt_security.dto.JwtUser
-import kotlinx.serialization.Transient
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Version
 import org.springframework.data.relational.core.mapping.Table
@@ -10,8 +10,8 @@ import org.springframework.data.relational.core.mapping.Table
 data class User(
   @Id val id: Long? = null,
   override val identity: String,
-  @Transient var roles: List<String> = listOf(),
-  @Version val version: String? = null
+  var roles: List<String> = listOf(),
+  @JsonIgnore @Version val version: String? = null
 ) : JwtUser {
   fun hasRole(role: String): Boolean = roles.contains(role)
 

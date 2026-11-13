@@ -1,0 +1,9 @@
+### Get current user v1
+GET {{baseUrl}}/api/v1/me
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+### Get current user v2
+GET {{baseUrl}}/api/v2/me
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
