@@ -119,5 +119,6 @@ kostack-security:
 springdoc:
   api-docs:
     enabled: true
+    version: openapi_3_0
   swagger-ui:
     path: "/docs"

@@ -11,6 +11,9 @@ kostack {
 }
 
 dependencies {
+  // Newer than the version shipped with the kostack conventions (Pagination items reference their schema)
+  implementation("io.github.kostack:database-tools:1.1.1")
+
   // Spring Shell: JLine line reader (Tab completion, history, line editing)
   implementation("org.springframework.shell:spring-shell-jline")
 
