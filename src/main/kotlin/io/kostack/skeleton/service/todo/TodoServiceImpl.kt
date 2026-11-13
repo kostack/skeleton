@@ -5,10 +5,10 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.database_tools.query_mapper.extension.map
 import io.github.kostack.database_tools.query_mapper.extension.toMappedQuery
 import io.github.kostack.database_tools.query_mapper.extension.toPageRequest
-import io.kostack.skeleton.controller.dto.todo.query.TodoListQuery
-import io.kostack.skeleton.controller.dto.todo.request.TodoCreateRequest
-import io.kostack.skeleton.controller.dto.todo.response.TodoListResponse
-import io.kostack.skeleton.controller.extension.toListResponse
+import io.kostack.skeleton.controller.todo.query.TodoListQuery
+import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
+import io.kostack.skeleton.controller.todo.response.TodoListResponse
+import io.kostack.skeleton.controller.todo.response.toListResponse
 import io.kostack.skeleton.db.mongodb.model.Todo
 import io.kostack.skeleton.db.mongodb.repository.TodoRepository
 import io.kostack.skeleton.db.r2dbc.model.User
@@ -23,6 +23,8 @@ class TodoServiceImpl(
   private val todoRepository: TodoRepository,
   private val paginator: MongoDbPaginator
 ) : TodoService {
+  override suspend fun findById(id: String): Todo? = todoRepository.findById(id)
+
   override suspend fun create(
     todoRequest: TodoCreateRequest,
     user: User
@@ -31,7 +33,7 @@ class TodoServiceImpl(
     return todoRepository.save(todo)
   }
 
-  override suspend fun update(todo: Todo): Todo = todoRepository.save(todo)
+  override suspend fun complete(todo: Todo): Todo = todoRepository.save(todo.copy(completed = true))
 
   override suspend fun delete(todo: Todo) = todoRepository.delete(todo)
 

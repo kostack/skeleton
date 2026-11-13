@@ -1,4 +1,4 @@
-package io.kostack.skeleton.controller
+package io.kostack.skeleton.controller.me
 
 import io.kostack.skeleton.db.r2dbc.model.User
 import io.swagger.v3.oas.annotations.Operation

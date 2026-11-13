@@ -1,7 +1,7 @@
 package io.kostack.skeleton.fixture.mongodb
 
 import io.github.kostack.fixtures.AbstractFixture
-import io.kostack.skeleton.controller.dto.todo.request.TodoCreateRequest
+import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
 import io.kostack.skeleton.db.r2dbc.model.User
 import io.kostack.skeleton.service.todo.TodoService
 import org.springframework.core.annotation.Order

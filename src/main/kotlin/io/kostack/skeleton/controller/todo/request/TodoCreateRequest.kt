@@ -1,4 +1,4 @@
-package io.kostack.skeleton.controller.dto.todo.request
+package io.kostack.skeleton.controller.todo.request
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size

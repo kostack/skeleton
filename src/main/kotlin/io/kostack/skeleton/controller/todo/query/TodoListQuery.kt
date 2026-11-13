@@ -1,4 +1,4 @@
-package io.kostack.skeleton.controller.dto.todo.query
+package io.kostack.skeleton.controller.todo.query
 
 import io.github.kostack.database_tools.query_mapper.QueryOperator
 import io.github.kostack.database_tools.query_mapper.annotation.QueryField

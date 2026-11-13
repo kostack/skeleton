@@ -1,5 +1,6 @@
 package io.kostack.skeleton.security.authorization
 
+import io.kostack.skeleton.controller.me.authorization.DefaultAuthorization
 import io.kostack.skeleton.db.r2dbc.model.User
 import io.mockk.every
 import io.mockk.mockk
@@ -13,7 +14,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @SpringBootTest
-class DefaultAuthorizationTest {
+class TodoAuthorizationTest {
   @Autowired
   lateinit var defaultAuthorization: DefaultAuthorization
 
