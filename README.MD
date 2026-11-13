@@ -60,7 +60,7 @@ This requires IntelliJ IDEA Ultimate (or another paid JetBrains IDE) and a runni
 
 To reopen it later, use **Remote Development → Dev Containers** on the Welcome screen. This reuses the existing container instead of rebuilding it.
 
-Start the application with the Gradle `bootRun` task (Gradle tool window → **Tasks → application → bootRun**, or `./gradlew bootRun` in the terminal). You can also use the run icon next to `main()` in `Application.kt` if the run configuration sets `SPRING_PROFILES_ACTIVE=dev` and its working directory is the project root: the `dev` profile imports `docker/.env` itself and falls back to the localhost defaults in `application-dev.yml` for everything except the JWT keys. Other profiles do not import the file, so their run configurations need the variables in the **Environment variables** field.
+Start the application with the Gradle `bootRun` task (Gradle tool window → **Tasks → application → bootRun**, or `./gradlew bootRun` in the terminal). You can also use the run icon next to `main()` in `Application.kt` if the run configuration sets `SPRING_PROFILES_ACTIVE=dev` and its working directory is the project root: the `dev` profile imports `docker/.env` itself. Other profiles do not import the file, so their run configurations need the variables in the **Environment variables** field.
 
 Because the container uses host networking, the application is reachable from the host browser at `http://localhost:<SERVER_PORT>` without port forwarding.
 
