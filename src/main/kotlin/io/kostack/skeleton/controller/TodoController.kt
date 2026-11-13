@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Pageable
-import org.springframework.data.web.PageableDefault
 import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,7 +28,6 @@ class TodoController(
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend fun listAction(
     @ParameterObject
-    @PageableDefault
     pageable: Pageable,
     @ParameterObject
     query: TodoListQuery,
