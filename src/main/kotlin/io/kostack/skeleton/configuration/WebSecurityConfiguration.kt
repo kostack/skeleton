@@ -26,9 +26,7 @@ import reactor.core.publisher.Mono
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
 class WebSecurityConfiguration(
-  val webSecurityProperties: WebSecurityProperties,
-  val converter: JwtAuthenticationConverter,
-  val authEntryPointJwt: AuthEntryPointJwt
+  val webSecurityProperties: WebSecurityProperties
 ) {
   companion object {
     private val SWAGGER_RESOURCES =
@@ -75,6 +73,8 @@ class WebSecurityConfiguration(
   @Order(1)
   @Bean
   fun securityWebFilterChain(
+    converter: JwtAuthenticationConverter,
+    authEntryPointJwt: AuthEntryPointJwt,
     http: ServerHttpSecurity,
     tokenConverter: HeaderOrQueryTokenAuthenticationConverter
   ): SecurityWebFilterChain =

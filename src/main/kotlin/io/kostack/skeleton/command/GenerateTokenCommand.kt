@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 
 @Profile("shell")
 @Component
-class GenerateLocalTokenCommand(
+class GenerateTokenCommand(
   val encoder: JwtEncoder,
   val userService: UserService
 ) {
@@ -21,8 +21,7 @@ class GenerateLocalTokenCommand(
   fun test(
     @Option(longName = "identity", shortName = 'u', required = true) identity: String
   ) = runBlocking {
-    val user = userService.findByIdentity(identity) ?: throw IllegalArgumentException("User not found")
-    val token = encoder.encode(user)
-    println(token)
+//    val token = encoder.encode(user)
+//    println(token)
   }
 }

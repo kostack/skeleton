@@ -49,7 +49,7 @@ abstract class BaseControllerIntegrationTest {
       "Test user not found: $identity. Load fixtures before authenticating."
     }
 
-  protected suspend fun accessToken(username: String): String = encoder.encode(user(username))
+  protected suspend fun accessToken(identity: String): String = encoder.encode(user(identity))
 
   protected fun authorizationHeader(accessToken: String): Pair<String, String> {
     val header = jwtProperties.authorizationHeader

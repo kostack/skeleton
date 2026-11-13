@@ -17,7 +17,6 @@ class UserFixture(
 
   suspend fun fixture1() {
     val user = User(identity = "admin-1", roles = listOf("ROLE_ADMIN"))
-    this.referenceRepository.setReference("user_1", user)
-    userService.save(user)
+    this.referenceRepository.setReference("user_1", userService.save(user))
   }
 }

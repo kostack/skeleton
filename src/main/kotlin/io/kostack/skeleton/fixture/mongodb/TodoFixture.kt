@@ -19,21 +19,21 @@ class TodoFixture(
   }
 
   suspend fun fixture1() {
-    val user = referenceRepository.getReference("user_1") as User
+    val user = referenceRepository.getReference<User>("user_1")
     val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
     service.create(todoCreateRequest, user)
     this.referenceRepository.setReference("todo_1", todoCreateRequest)
   }
 
   suspend fun fixture2() {
-    val user = referenceRepository.getReference("user_1") as User
+    val user = referenceRepository.getReference<User>("user_1")
     val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
     service.create(todoCreateRequest, user)
     this.referenceRepository.setReference("todo_2", todoCreateRequest)
   }
 
   suspend fun fixture3() {
-    val user = referenceRepository.getReference("user_1") as User
+    val user = referenceRepository.getReference<User>("user_1")
     val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
     service.create(todoCreateRequest, user)
     this.referenceRepository.setReference("todo_3", todoCreateRequest)

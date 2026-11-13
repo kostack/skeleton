@@ -6,7 +6,7 @@ pluginManagement {
 }
 
 plugins {
-  id("io.github.kostack.settings") version "1.0.0"
+  id("io.github.kostack.settings") version "1.1.0"
 }
 
 rootProject.name = "skeleton"

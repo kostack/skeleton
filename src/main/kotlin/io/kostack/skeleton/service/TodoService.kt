@@ -33,22 +33,23 @@ class TodoService(
 
   suspend fun update(todo: Todo): Todo = todoRepository.save(todo)
 
+  suspend fun delete(todo: Todo) = todoRepository.delete(todo)
+
   suspend fun list(
     pageable: Pageable,
     requestQuery: TodoListQuery,
     user: User
   ): Pagination<TodoListResponse> {
-    val sortedRequest =
-      pageable.toPageRequest(
-        sortableSource = TodoListQuery::class
-      )
+    val pageRequest = pageable.toPageRequest(TodoListQuery::class)
     val query =
       Query()
-        .toMappedQuery(requestQuery)
-        .addCriteria(Criteria.where("createdBy").`is`(user.identity))
+        .toMappedQuery(
+          requestQuery,
+          required = Criteria.where("createdBy").`is`(user.identity)
+        )
 
     return paginator
-      .toPagination(query, sortedRequest, Todo::class)
+      .toPagination(query, pageRequest, Todo::class)
       .map { todo ->
         todo.toListResponse()
       }

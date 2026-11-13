@@ -107,8 +107,7 @@ kostack-security:
       algorithm: RS512
       jwk-set-uri: http://user-service.local/.well-known/jwks.json
   authorization-header:
-    name: x-auth
-    prefix: ""
+    enabled: true
   query-parameter:
     enabled: true
     name: token

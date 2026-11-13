@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "Api", description = "Api operations")
+@Tag(name = "Me", description = "Me operations")
 @RestController
 class ApiController {
   @Operation(
