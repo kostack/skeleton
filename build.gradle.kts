@@ -10,7 +10,14 @@ kostack {
   coverageExclusions.add("**/generated/**")
 }
 
+// API docs UI: Scalar instead of Swagger UI (the kostack conventions add the Swagger UI starter)
+configurations.configureEach {
+  exclude(group = "org.springdoc", module = "springdoc-openapi-starter-webflux-ui")
+}
+
 dependencies {
+  implementation("org.springdoc:springdoc-openapi-starter-webflux-scalar:3.2.0")
+
   // Newer than the version shipped with the kostack conventions (Pagination items reference their schema)
   implementation("io.github.kostack:database-tools:1.1.1")
 

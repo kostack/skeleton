@@ -29,10 +29,9 @@ class WebSecurityConfiguration(
   val webSecurityProperties: WebSecurityProperties
 ) {
   companion object {
-    private val SWAGGER_RESOURCES =
+    private val API_DOCS_RESOURCES =
       arrayOf(
         "/docs/**",
-        "/swagger-ui/**",
         "/v3/api-docs/**"
       )
 
@@ -45,7 +44,7 @@ class WebSecurityConfiguration(
   @Order(0)
   @Bean
   @Profile("dev", "staging")
-  fun swaggerSecurity(http: ServerHttpSecurity): SecurityWebFilterChain {
+  fun apiDocsSecurity(http: ServerHttpSecurity): SecurityWebFilterChain {
     val encoder: PasswordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
 
     val userDetailsService =
@@ -53,20 +52,20 @@ class WebSecurityConfiguration(
         User
           .withUsername(webSecurityProperties.basicAuthUser)
           .password(encoder.encode(webSecurityProperties.basicAuthPassword))
-          .roles("SWAGGER")
+          .roles("API_DOCS")
           .build()
       )
 
     val authManager = UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService)
 
     return http
-      .securityMatcher(ServerWebExchangeMatchers.pathMatchers(*SWAGGER_RESOURCES))
+      .securityMatcher(ServerWebExchangeMatchers.pathMatchers(*API_DOCS_RESOURCES))
       .csrf { it.disable() }
       .formLogin { it.disable() }
       .httpBasic { httpBasic ->
         httpBasic.authenticationManager(authManager)
       }.authorizeExchange { exchanges ->
-        exchanges.anyExchange().hasRole("SWAGGER")
+        exchanges.anyExchange().hasRole("API_DOCS")
       }.build()
   }
 

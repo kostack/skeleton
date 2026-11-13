@@ -10,7 +10,7 @@ A Kotlin and Spring Boot skeleton for building reactive services with WebFlux, J
 - Reactive MongoDB and MySQL/R2DBC
 - Flyway database migrations
 - Spring Cloud Stream with RabbitMQ
-- OpenAPI and Swagger UI
+- OpenAPI with a Scalar API reference
 - JUnit 5, MockK, Reactor Test, JaCoCo, and Spotless
 
 ## Prerequisites
@@ -90,8 +90,8 @@ Configure these values for your local services:
 | `RABBITMQ_USER` | `guest` | RabbitMQ user |
 | `RABBITMQ_PASS` | `guest` | RabbitMQ password |
 | `RABBITMQ_PORT` | `5672` | RabbitMQ AMQP port |
-| `BASIC_AUTH_USER` | `staging` | Swagger HTTP Basic username |
-| `BASIC_AUTH_PASSWORD` | `set_pass` | Swagger HTTP Basic password; replace the template value |
+| `BASIC_AUTH_USER` | `staging` | API docs HTTP Basic username |
+| `BASIC_AUTH_PASSWORD` | `set_pass` | API docs HTTP Basic password; replace the template value |
 | `PROBE_HEADER` | `x-k8s` | Required actuator request header name |
 | `PROBE_VALUE` | `set_value` | Required actuator header value; replace the template value |
 | `JWT_PRIVATE_KEY` | Base64-encoded PEM | PKCS#8 RSA private key for signing tokens |
@@ -188,13 +188,13 @@ When adding messaging, put new `*-out-*` producer bindings in `application.yml`,
 
 ## How to use the API documentation
 
-With the `dev` or `staging` profile, open:
+With the `dev` or `staging` profile, open the Scalar API reference:
 
 ```text
 http://localhost:8080/docs
 ```
 
-Swagger resources use HTTP Basic authentication with `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` from your environment.
+The API reference (`/docs`) and the OpenAPI document (`/v3/api-docs`) use HTTP Basic authentication with `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` from your environment.
 
 The API is versioned by path (`/api/v1/...`). To add a version, add it to `spring.webflux.apiversion.supported` and add `version = "2+"` handlers only for endpoints whose contract changes; handlers declared with `version = "1+"` keep serving later versions. A single OpenAPI document lists all versions, with the version filled into each path (e.g. `/api/v1/me`, `/api/v2/me`).
 
@@ -232,7 +232,7 @@ For local development, generate a token with the `generate-token` shell command 
 | `GET /api/v1/me` | Returns the current user | Requires `ROLE_ADMIN` |
 | `GET /api/v1/todos` | Returns paginated todos created by the current user | Requires an authenticated user |
 
-The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Swagger's authorization controls.
+The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Scalar's authentication settings.
 
 ## How to call actuator endpoints
 
@@ -242,7 +242,7 @@ The service exposes `health`, `info`, and `metrics`. Actuator requests require t
 curl -H "${PROBE_HEADER}: ${PROBE_VALUE}" http://localhost:8080/actuator/health
 ```
 
-Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the same values configured for the application. Replace the template Swagger password and probe value before deployment.
+Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the same values configured for the application. Replace the template API docs password and probe value before deployment.
 
 ## How to run shell commands
 
