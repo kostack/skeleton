@@ -17,7 +17,9 @@ import io.kostack.skeleton.db.r2dbc.model.User
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
@@ -25,6 +27,8 @@ class TodoServiceImpl(
   private val todoRepository: TodoRepository,
   private val paginator: MongoDbPaginator
 ) : TodoService {
+  override suspend fun save(todo: Todo): Todo = todoRepository.save(todo)
+
   override suspend fun findById(id: String): Todo? = todoRepository.findById(id)
 
   override suspend fun findByTitle(title: String): Todo? = todoRepository.findByTitle(title)
@@ -42,10 +46,15 @@ class TodoServiceImpl(
     }
 
     val todo = Todo(id = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
-    return todoRepository.save(todo)
+    return save(todo)
   }
 
-  override suspend fun complete(todo: Todo): Todo = todoRepository.save(todo.copy(completed = true))
+  override suspend fun complete(todo: Todo): Todo {
+    if (todo.completed) {
+      throw ResponseStatusException(HttpStatus.CONFLICT, "Todo is already completed")
+    }
+    return save(todo.copy(completed = true))
+  }
 
   override suspend fun delete(todo: Todo) = todoRepository.delete(todo)
 

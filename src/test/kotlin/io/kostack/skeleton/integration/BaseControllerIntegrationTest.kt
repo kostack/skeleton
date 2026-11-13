@@ -23,10 +23,10 @@ abstract class BaseControllerIntegrationTest {
   @Autowired protected lateinit var references: ReferenceRepository
 
   @Autowired
-  private lateinit var userService: UserService
+  protected lateinit var userService: UserService
 
   @Autowired
-  private lateinit var encoder: JwtEncoder
+  protected lateinit var encoder: JwtEncoder
 
   @Autowired
   private lateinit var jwtProperties: SecurityProperties

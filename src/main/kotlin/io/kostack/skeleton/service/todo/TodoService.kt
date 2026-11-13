@@ -9,6 +9,8 @@ import io.kostack.skeleton.db.r2dbc.model.User
 import org.springframework.data.domain.Pageable
 
 interface TodoService {
+  suspend fun save(todo: Todo): Todo
+
   suspend fun findById(id: String): Todo?
 
   suspend fun findByTitle(title: String): Todo?

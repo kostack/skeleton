@@ -12,7 +12,7 @@ class MeControllerTest : BaseControllerIntegrationTest() {
   @Test
   fun `authenticated request returns current user v1`() =
     runTest {
-      clientFor(user("admin-1"))
+      clientFor(user("user-1"))
         .get()
         .uri { uriBuilder ->
           uriBuilder
@@ -25,7 +25,7 @@ class MeControllerTest : BaseControllerIntegrationTest() {
         .expectBody<String>()
         .value { response ->
           assertEquals(
-            "admin-1",
+            "user-1",
             response
           )
         }
@@ -34,7 +34,7 @@ class MeControllerTest : BaseControllerIntegrationTest() {
   @Test
   fun `authenticated request returns current user v2`() =
     runTest {
-      clientFor(user("admin-1"))
+      clientFor(user("user-1"))
         .get()
         .uri { uriBuilder ->
           uriBuilder
@@ -47,7 +47,7 @@ class MeControllerTest : BaseControllerIntegrationTest() {
         .expectBody<User>()
         .value { response ->
           assertEquals(
-            "admin-1",
+            "user-1",
             response?.identity
           )
         }
@@ -56,7 +56,7 @@ class MeControllerTest : BaseControllerIntegrationTest() {
   @Test
   fun `unsupported api version is rejected`() =
     runTest {
-      clientFor(user("admin-1"))
+      clientFor(user("user-1"))
         .get()
         .uri("/api/v3/me")
         .exchange()

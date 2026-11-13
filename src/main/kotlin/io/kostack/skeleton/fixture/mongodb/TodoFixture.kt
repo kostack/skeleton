@@ -1,11 +1,12 @@
 package io.kostack.skeleton.fixture.mongodb
 
 import io.github.kostack.fixtures.AbstractFixture
-import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
+import io.kostack.skeleton.db.mongodb.model.Todo
 import io.kostack.skeleton.db.r2dbc.model.User
 import io.kostack.skeleton.service.todo.TodoService
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 @Component
 @Order(2)
@@ -13,29 +14,27 @@ class TodoFixture(
   val service: TodoService
 ) : AbstractFixture() {
   override suspend fun load() {
-    fixture1()
-    fixture2()
-    fixture3()
+    createTodo(1, referenceRepository.getReference<User>("user_1"))
+    createTodo(2, referenceRepository.getReference<User>("user_1"))
+    createTodo(3, referenceRepository.getReference<User>("user_1"), true)
+    createTodo(4, referenceRepository.getReference<User>("user_2"))
+    createTodo(5, referenceRepository.getReference<User>("user_2"), true)
   }
 
-  suspend fun fixture1() {
-    val user = referenceRepository.getReference<User>("user_1")
-    val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
-    service.create(todoCreateRequest, user)
-    this.referenceRepository.setReference("todo_1", todoCreateRequest)
-  }
-
-  suspend fun fixture2() {
-    val user = referenceRepository.getReference<User>("user_1")
-    val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
-    service.create(todoCreateRequest, user)
-    this.referenceRepository.setReference("todo_2", todoCreateRequest)
-  }
-
-  suspend fun fixture3() {
-    val user = referenceRepository.getReference<User>("user_1")
-    val todoCreateRequest = TodoCreateRequest(title = faker.word().noun())
-    service.create(todoCreateRequest, user)
-    this.referenceRepository.setReference("todo_3", todoCreateRequest)
+  suspend fun createTodo(
+    idx: Int,
+    user: User,
+    completed: Boolean = false
+  ) {
+    val todo =
+      service.save(
+        Todo(
+          id = UUID.randomUUID().toString(),
+          title = "${faker.word().noun()} $idx",
+          completed = completed,
+          createdBy = user.identity
+        )
+      )
+    this.referenceRepository.setReference("todo_$idx", todo)
   }
 }

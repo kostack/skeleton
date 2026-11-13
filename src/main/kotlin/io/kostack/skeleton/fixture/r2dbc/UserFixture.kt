@@ -13,10 +13,16 @@ class UserFixture(
 ) : AbstractFixture() {
   override suspend fun load() {
     fixture1()
+    fixture2()
   }
 
   suspend fun fixture1() {
-    val user = User(identity = "admin-1", roles = listOf("ROLE_ADMIN"))
+    val user = User(identity = "user-1", roles = listOf("ROLE_USER"))
     this.referenceRepository.setReference("user_1", userService.save(user))
+  }
+
+  suspend fun fixture2() {
+    val user = User(identity = "user-2", roles = listOf("ROLE_USER"))
+    this.referenceRepository.setReference("user_2", userService.save(user))
   }
 }
