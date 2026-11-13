@@ -8,7 +8,7 @@ import org.springframework.web.reactive.config.WebFluxConfigurer
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer
 
 @Configuration
-class WebFluxConfiguration(
+class WebFluxConfig(
   private val todoArgumentResolver: TodoArgumentResolver
 ) : WebFluxConfigurer {
   companion object {

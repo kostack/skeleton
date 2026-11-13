@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.method.HandlerMethod
 
 @Configuration
-class OpenApiConfiguration : OpenApiCustomizer {
+class OpenApiConfig : OpenApiCustomizer {
   companion object {
     private const val BAD_REQUEST = "BadRequest"
     private const val UNAUTHORIZED = "Unauthorized"
@@ -77,11 +77,11 @@ class OpenApiConfiguration : OpenApiCustomizer {
   private fun prefixApiVersions(paths: Paths?): Paths? {
     if (paths == null) return null
 
-    val index = WebFluxConfiguration.API_VERSION_PATH_SEGMENT + 1 // leading "/" yields an empty first element
+    val index = WebFluxConfig.API_VERSION_PATH_SEGMENT + 1 // leading "/" yields an empty first element
     return Paths().apply {
       paths.forEach { (path, item) ->
         val segments = path.split("/").toMutableList()
-        if (path.startsWith(WebFluxConfiguration.API_PATH_PREFIX) &&
+        if (path.startsWith(WebFluxConfig.API_PATH_PREFIX) &&
           segments.getOrNull(index)?.firstOrNull()?.isDigit() == true
         ) {
           segments[index] = "v${segments[index]}"

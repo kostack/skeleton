@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
-class WebSecurityConfiguration(
+class WebSecurityConfig(
   val webSecurityProperties: WebSecurityProperties
 ) {
   companion object {
