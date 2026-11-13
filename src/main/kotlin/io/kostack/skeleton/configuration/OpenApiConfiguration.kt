@@ -91,10 +91,6 @@ class OpenApiConfiguration : OpenApiCustomizer {
     }
   }
 
-  /**
-   * Adds the common error responses each operation can actually return.
-   * Responses declared explicitly on an operation take precedence.
-   */
   @Bean
   fun customizeOperations(): OperationCustomizer =
     OperationCustomizer { operation: Operation, handlerMethod: HandlerMethod ->

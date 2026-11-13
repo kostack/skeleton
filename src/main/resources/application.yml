@@ -66,13 +66,15 @@ spring:
           destination: demo.queue
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      probes:
+        enabled: true
+      group:
+        alb:
+          include:
+            - livenessState
+            - readinessState
 
 logging:
   level:
