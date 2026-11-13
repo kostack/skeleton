@@ -22,7 +22,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .get()
         .uri { uriBuilder ->
           uriBuilder
-            .path("/api/todos")
+            .path("/api/v1/todos")
             .queryParam("completed", "false")
             .queryParam("sort", "title,desc")
             .build()

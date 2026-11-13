@@ -196,6 +196,8 @@ http://localhost:8080/docs
 
 Swagger resources use HTTP Basic authentication with `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` from your environment.
 
+The API is versioned by path (`/api/v1/...`). To add a version, add it to `spring.webflux.apiversion.supported` and add `version = "2+"` handlers only for endpoints whose contract changes; handlers declared with `version = "1+"` keep serving later versions. A single OpenAPI document lists all versions, with the version filled into each path (e.g. `/api/v1/me`, `/api/v2/me`).
+
 Routes under `/api/**` require a valid JWT. The current configuration uses the `x-auth` header with an empty prefix:
 
 ```http
@@ -206,12 +208,12 @@ Example requests:
 
 ```bash
 curl -H "x-auth: $TOKEN" \
-  http://localhost:8080/api/me
+  http://localhost:8080/api/v1/me
 
 curl -G -H "x-auth: $TOKEN" \
   --data-urlencode "completed=false" \
   --data-urlencode "sort=title,desc" \
-  http://localhost:8080/api/todos
+  http://localhost:8080/api/v1/todos
 ```
 
 Tokens may also be supplied through the `token` query parameter, as enabled in `application.yml`.
@@ -227,8 +229,8 @@ For local development, generate a token with the `generate-token` shell command 
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
-| `GET /api/me` | Returns the current user | Requires `ROLE_ADMIN` |
-| `GET /api/todos` | Returns paginated todos created by the current user | Requires an authenticated user |
+| `GET /api/v1/me` | Returns the current user | Requires `ROLE_ADMIN` |
+| `GET /api/v1/todos` | Returns paginated todos created by the current user | Requires an authenticated user |
 
 The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Swagger's authorization controls.
 

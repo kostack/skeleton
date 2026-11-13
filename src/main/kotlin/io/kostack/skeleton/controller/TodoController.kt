@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Todo", description = "Api operations for managing todo items")
-@RequestMapping("/api/todos")
+@RequestMapping("/api/{version}/todos")
 @RestController
 class TodoController(
   private val todoService: TodoService
@@ -26,7 +26,7 @@ class TodoController(
     operationId = "list_action",
     summary = "List all todos"
   )
-  @GetMapping(produces = [MediaType.APPLICATION_JSON_VALUE])
+  @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend fun listAction(
     @ParameterObject
     @PageableDefault

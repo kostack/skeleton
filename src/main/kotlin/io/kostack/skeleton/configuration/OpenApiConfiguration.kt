@@ -2,6 +2,7 @@ package io.kostack.skeleton.configuration
 
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
+import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.security.SecurityRequirement
@@ -35,6 +36,25 @@ class OpenApiConfiguration : OpenApiCustomizer {
       .components(components)
       .addSecurityItem(SecurityRequirement().addList("bearer-key"))
       .info(Info().title("API Documentation").description("Restricted API documentation."))
+
+    openApi.paths = prefixApiVersions(openApi.paths)
+  }
+
+  private fun prefixApiVersions(paths: Paths?): Paths? {
+    if (paths == null) return null
+
+    val index = WebFluxConfiguration.API_VERSION_PATH_SEGMENT + 1 // leading "/" yields an empty first element
+    return Paths().apply {
+      paths.forEach { (path, item) ->
+        val segments = path.split("/").toMutableList()
+        if (path.startsWith(WebFluxConfiguration.API_PATH_PREFIX) &&
+          segments.getOrNull(index)?.firstOrNull()?.isDigit() == true
+        ) {
+          segments[index] = "v${segments[index]}"
+        }
+        addPathItem(segments.joinToString("/"), item)
+      }
+    }
   }
 
   @Bean

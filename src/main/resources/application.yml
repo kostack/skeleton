@@ -21,6 +21,10 @@ spring:
     default: dev
   application:
     name: skeleton-service
+  webflux:
+    apiversion:
+      default: 1
+      supported: 1,2
   shell:
     interactive:
       enabled: false

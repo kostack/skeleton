@@ -29,3 +29,14 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   runtimeOnly("com.mysql:mysql-connector-j")
 }
+
+// JLine (Spring Shell) uses the FFM API; grant native access to avoid the restricted-method warning.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+  jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+  manifest {
+    attributes("Enable-Native-Access" to "ALL-UNNAMED")
+  }
+}

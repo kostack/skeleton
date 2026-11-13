@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 
-class ApiControllerTest : BaseControllerIntegrationTest() {
+class MeControllerTest : BaseControllerIntegrationTest() {
   @Test
   fun `authenticated request returns current user`() =
     runTest {
@@ -16,7 +16,7 @@ class ApiControllerTest : BaseControllerIntegrationTest() {
         .get()
         .uri { uriBuilder ->
           uriBuilder
-            .path("/api/me")
+            .path("/api/v1/me")
             .build()
         }.accept(MediaType.APPLICATION_JSON)
         .exchange()
@@ -32,10 +32,21 @@ class ApiControllerTest : BaseControllerIntegrationTest() {
     }
 
   @Test
+  fun `unsupported api version is rejected`() =
+    runTest {
+      clientFor(user("admin-1"))
+        .get()
+        .uri("/api/v3/me")
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+  @Test
   fun `missing token is rejected`() {
     webTestClient
       .get()
-      .uri("/api/me")
+      .uri("/api/v1/me")
       .exchange()
       .expectStatus()
       .isUnauthorized
