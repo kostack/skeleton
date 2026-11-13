@@ -1,4 +1,4 @@
-package io.kostack.skeleton.service
+package io.kostack.skeleton.service.todo
 
 import io.github.kostack.database_tools.paginator.MongoDbPaginator
 import io.github.kostack.database_tools.paginator.Pagination
@@ -19,11 +19,11 @@ import org.springframework.stereotype.Service
 import java.util.UUID
 
 @Service
-class TodoService(
+class TodoServiceImpl(
   private val todoRepository: TodoRepository,
   private val paginator: MongoDbPaginator
-) {
-  suspend fun create(
+) : TodoService {
+  override suspend fun create(
     todoRequest: TodoCreateRequest,
     user: User
   ): Todo {
@@ -31,11 +31,11 @@ class TodoService(
     return todoRepository.save(todo)
   }
 
-  suspend fun update(todo: Todo): Todo = todoRepository.save(todo)
+  override suspend fun update(todo: Todo): Todo = todoRepository.save(todo)
 
-  suspend fun delete(todo: Todo) = todoRepository.delete(todo)
+  override suspend fun delete(todo: Todo) = todoRepository.delete(todo)
 
-  suspend fun list(
+  override suspend fun list(
     pageable: Pageable,
     requestQuery: TodoListQuery,
     user: User

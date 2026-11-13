@@ -4,7 +4,7 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.kostack.skeleton.controller.dto.todo.query.TodoListQuery
 import io.kostack.skeleton.controller.dto.todo.response.TodoListResponse
 import io.kostack.skeleton.db.r2dbc.model.User
-import io.kostack.skeleton.service.TodoService
+import io.kostack.skeleton.service.todo.TodoService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject

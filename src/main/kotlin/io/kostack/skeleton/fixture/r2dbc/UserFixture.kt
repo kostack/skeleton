@@ -2,7 +2,7 @@ package io.kostack.skeleton.fixture.r2dbc
 
 import io.github.kostack.fixtures.AbstractFixture
 import io.kostack.skeleton.db.r2dbc.model.User
-import io.kostack.skeleton.service.UserService
+import io.kostack.skeleton.service.user.UserService
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 

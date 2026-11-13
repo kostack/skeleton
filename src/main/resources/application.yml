@@ -119,11 +119,10 @@ kostack-security:
 springdoc:
   api-docs:
     enabled: true
-# API reference UI (Scalar), rendering the springdoc document from /v3/api-docs
+
 scalar:
   enabled: true
   path: "/docs"
   url: "/v3/api-docs"
   page-title: "API Documentation"
-  # Scalar sends usage telemetry by default; these docs are restricted
   telemetry: false
