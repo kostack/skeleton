@@ -18,7 +18,7 @@ class TestCommand(
   fun test(
     @Argument(index = 0, description = "Free-text argument echoed back") arg: String?
   ) {
-    val sent = streamBridge.send("supplier-out-0", "hello from spring-cloud-stream")
+    val sent = streamBridge.send("demo-out", "hello from spring-cloud-stream")
     println("Test command called with argument: ${arg.orEmpty()} (message sent: $sent)")
   }
 }

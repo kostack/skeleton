@@ -3,7 +3,10 @@ services:
     container_name: backend
     image: your-image
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: production
+
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      USER_SERVICE_JWKS_URI: ${USER_SERVICE_JWKS_URI}
 
       MONGO_URI: ${MONGO_URI}
 
@@ -21,3 +24,5 @@ services:
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
     ports:
       - "8080:8080"
+      # Actuator (MANAGEMENT_SERVER_PORT); bound to loopback so only the host's probes reach it
+      - "127.0.0.1:8081:8081"

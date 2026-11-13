@@ -1,8 +1,7 @@
 cors:
   path-pattern: "/**"
-  allowed-origin-patterns:
-    - "http://localhost:*"
-    - "null"
+  # Comma-separated origin patterns
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:}
   allowed-methods:
     - GET
     - POST
@@ -14,11 +13,7 @@ cors:
   allowed-headers:
     - "*"
   allow-credentials: false
-server:
-  port: ${SERVER_PORT:8080}
 spring:
-  profiles:
-    default: dev
   application:
     name: skeleton-service
   webflux:
@@ -38,20 +33,20 @@ spring:
       schema: ${MYSQL_DB}
     pool:
       enabled: true
+      initial-size: 2
       max-size: 20
-      initial-size: 10
       max-idle-time: 30m
-  # Flyway (JDBC) configuration
+      # Recycle connections well before MySQL's wait_timeout closes them
+      max-life-time: 1h
+      # Fail fast instead of waiting indefinitely when the pool is exhausted
+      max-acquire-time: 5s
+      validation-query: SELECT 1
+  # Flyway runs over JDBC with its own connection settings; the application itself uses R2DBC only
   flyway:
     enabled: true
     url: jdbc:${MYSQL_URL}/${MYSQL_DB}
     user: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
-  datasource:
-    url: jdbc:${MYSQL_URL}/${MYSQL_DB}
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
   rabbitmq:
     host: ${RABBITMQ_HOST}
     username: ${RABBITMQ_USER}
@@ -62,37 +57,39 @@ spring:
       function:
         autodetect: false
       bindings:
-        supplier-out-0:
+        demo-out:
           destination: demo.queue
 
 management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:8081}
   endpoint:
     health:
+      show-details: never
       probes:
         enabled: true
+      # Readiness includes the backing services: when one is down, pods stop receiving traffic
+      # (all pods at once for a shared outage) and recover automatically when it returns.
+      # Liveness deliberately excludes them, so an outage never triggers restarts.
       group:
+        readiness:
+          include:
+            - readinessState
+            - r2dbc
+            - mongo
+            - rabbit
         alb:
           include:
             - livenessState
             - readinessState
-
-logging:
-  level:
-    io.kostack: INFO
-    org.flywaydb: INFO
-    org:
-      springframework:
-        boot.autoconfigure.flyway: INFO
-        security: INFO
-        data:
-          mongodb: INFO
+            - r2dbc
+            - mongo
+            - rabbit
 
 
 web-security:
   basic-auth-user: ${BASIC_AUTH_USER}
   basic-auth-password: ${BASIC_AUTH_PASSWORD}
-  probe-header: ${PROBE_HEADER}
-  probe-value: ${PROBE_VALUE}
 
 kostack-security:
   issuer:
@@ -111,11 +108,11 @@ kostack-security:
       issuer: user-service.local
       audience: kostack
       algorithm: RS512
-      jwk-set-uri: http://user-service.local/.well-known/jwks.json
+      jwk-set-uri: ${USER_SERVICE_JWKS_URI:http://user-service.local/.well-known/jwks.json}
   authorization-header:
     enabled: true
   query-parameter:
-    enabled: true
+    enabled: false
     name: token
 
 springdoc:

@@ -1,0 +1,28 @@
+spring:
+  config:
+    import: optional:file:docker/.env[.properties]
+  web:
+    error:
+      include-binding-errors: always
+
+MONGO_URI: mongodb://localhost:27017/skeleton?authSource=admin
+MYSQL_URL: mysql://localhost:3306
+MYSQL_DB: skeleton
+MYSQL_USER: root
+MYSQL_PASSWORD: root
+RABBITMQ_HOST: localhost
+RABBITMQ_USER: guest
+RABBITMQ_PASS: guest
+RABBITMQ_PORT: 5672
+BASIC_AUTH_USER: dev
+BASIC_AUTH_PASSWORD: dev
+
+cors:
+  allowed-origin-patterns:
+    - "http://localhost:*"
+    # Sandboxed iframes and file:// pages, e.g. a locally opened HTML client
+    - "null"
+
+kostack-security:
+  query-parameter:
+    enabled: true

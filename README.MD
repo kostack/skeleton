@@ -60,7 +60,7 @@ This requires IntelliJ IDEA Ultimate (or another paid JetBrains IDE) and a runni
 
 To reopen it later, use **Remote Development → Dev Containers** on the Welcome screen. This reuses the existing container instead of rebuilding it.
 
-Start the application with the Gradle `bootRun` task (Gradle tool window → **Tasks → application → bootRun**, or `./gradlew bootRun` in the terminal). Do not use the run icon next to `main()` in `Application.kt`: only the Gradle tasks load `docker/.env`, so a plain Spring Boot or Kotlin run configuration starts without the required variables and fails. To use such a run configuration anyway, add the variables from `docker/.env` to its **Environment variables** field.
+Start the application with the Gradle `bootRun` task (Gradle tool window → **Tasks → application → bootRun**, or `./gradlew bootRun` in the terminal). You can also use the run icon next to `main()` in `Application.kt` if the run configuration sets `SPRING_PROFILES_ACTIVE=dev` and its working directory is the project root: the `dev` profile imports `docker/.env` itself and falls back to the localhost defaults in `application-dev.yml` for everything except the JWT keys. Other profiles do not import the file, so their run configurations need the variables in the **Environment variables** field.
 
 Because the container uses host networking, the application is reachable from the host browser at `http://localhost:<SERVER_PORT>` without port forwarding.
 
@@ -81,6 +81,7 @@ Configure these values for your local services:
 | Variable | Example | Purpose |
 | --- | --- | --- |
 | `SERVER_PORT` | `8080` | HTTP port of the application; change it if another local app uses `8080` |
+| `MANAGEMENT_SERVER_PORT` | `8081` | Actuator port (health, info, metrics); keep it unreachable from the public network |
 | `MONGO_URI` | `mongodb://localhost:27017/skeleton?authSource=admin` | MongoDB connection URI |
 | `MYSQL_URL` | `mysql://localhost:3306` | MySQL host URL without the database name |
 | `MYSQL_DB` | `skeleton` | MySQL database/schema |
@@ -91,9 +92,9 @@ Configure these values for your local services:
 | `RABBITMQ_PASS` | `guest` | RabbitMQ password |
 | `RABBITMQ_PORT` | `5672` | RabbitMQ AMQP port |
 | `BASIC_AUTH_USER` | `staging` | API docs HTTP Basic username |
-| `BASIC_AUTH_PASSWORD` | `set_pass` | API docs HTTP Basic password; replace the template value |
-| `PROBE_HEADER` | `x-k8s` | Required actuator request header name |
-| `PROBE_VALUE` | `set_value` | Required actuator header value; replace the template value |
+| `BASIC_AUTH_PASSWORD` | `set_pass` | API docs HTTP Basic password; replace the template value. Required (with `BASIC_AUTH_USER`) only for the `dev` and `staging` profiles |
+| `CORS_ALLOWED_ORIGINS` | `https://app.example.com,https://*.example.com` | Comma-separated CORS origin patterns; empty allows no cross-origin requests. The `dev` profile allows `http://localhost:*` and `null` itself |
+| `USER_SERVICE_JWKS_URI` | `http://user-service.local/.well-known/jwks.json` | JWKS of the `user-service.local` trusted issuer; use HTTPS outside local development |
 | `JWT_PRIVATE_KEY` | Base64-encoded PEM | PKCS#8 RSA private key for signing tokens |
 | `JWT_PUBLIC_KEY` | Base64-encoded PEM | X.509 RSA public key for validating tokens |
 
@@ -141,7 +142,7 @@ Start the required databases and RabbitMQ, then run:
 ./gradlew bootRun
 ```
 
-The default Spring profile is `dev`, and the HTTP server listens on `SERVER_PORT` from `docker/.env` (default `8080`).
+Gradle selects the `dev` profile unless another is given. `application.yml` defines no default profile, so `java -jar` without `SPRING_PROFILES_ACTIVE` runs with none (strict CORS, no API docs authentication chain). The HTTP server listens on `SERVER_PORT` from `docker/.env` (default `8080`).
 
 ### How to run the executable JAR
 
@@ -162,7 +163,8 @@ SPRING_PROFILES_ACTIVE=staging ./gradlew bootRun
 
 Available profile-specific configuration files are:
 
-- `application-test.yml`
+- `application-dev.yml`
+- `application-test.yml` (in `src/test/resources`, so it is not packaged into the JAR)
 - `application-shell.yml`
 - `application-staging.yml`
 - `application-production.yml`
@@ -170,7 +172,7 @@ Available profile-specific configuration files are:
 
 ### RabbitMQ producers and consumers
 
-Producer bindings are part of `application.yml` and apply to every profile, so `StreamBridge` can publish from any of them. For example, `supplier-out-0` sends to `demo.queue`.
+Producer bindings are part of `application.yml` and apply to every profile, so `StreamBridge` can publish from any of them. For example, `demo-out` sends to `demo.queue`.
 
 Consumers belong to the `cloud-consumer` profile, defined in `application-cloud-consumer.yml`: the `consumer` function on `demo.queue` (group `skeleton-service`), its retries, and the dead-letter queue. The `consumer` bean in `cloud/stream/Demo.kt` is created only with this profile.
 
@@ -216,14 +218,14 @@ curl -G -H "x-auth: $TOKEN" \
   http://localhost:8080/api/v1/todos
 ```
 
-Tokens may also be supplied through the `token` query parameter, as enabled in `application.yml`.
+With the `dev` profile, tokens may also be supplied through the `token` query parameter. It is disabled in other profiles because query strings end up in access logs and `Referer` headers.
 
 Tokens must use the audience `kostack`, the `RS512` signature algorithm, and one of the trusted issuers configured in `application.yml`:
 
 | Issuer | Verified with |
 | --- | --- |
 | `local` | `JWT_PUBLIC_KEY`; this is also the issuer the service signs its own tokens with |
-| `user-service.local` | The JWKS at `http://user-service.local/.well-known/jwks.json` |
+| `user-service.local` | The JWKS at `USER_SERVICE_JWKS_URI` (default `http://user-service.local/.well-known/jwks.json`) |
 
 For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity or creates an in-memory user when no database record exists; roles come from the token in either case.
 
@@ -236,13 +238,24 @@ The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth
 
 ## How to call actuator endpoints
 
-The service exposes `health`, `info`, and `metrics`. Actuator requests require the configured probe header:
+The service exposes `health`, `info`, and `metrics` on `MANAGEMENT_SERVER_PORT` (default `8081`), separate from the API port. Health endpoints need no authentication, so load balancer health checks and Kubernetes probes can call them directly; `info` and `metrics` require a JWT like the API:
 
 ```bash
-curl -H "${PROBE_HEADER}: ${PROBE_VALUE}" http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
+curl -H "x-auth: $TOKEN" http://localhost:8081/actuator/metrics
 ```
 
-Export `PROBE_HEADER` and `PROBE_VALUE` in the calling shell first, using the same values configured for the application. Replace the template API docs password and probe value before deployment.
+Never expose the management port publicly. Replace the template API docs password before deployment.
+
+Health groups:
+
+| Endpoint | Includes | Use for |
+| --- | --- | --- |
+| `/actuator/health/liveness` | `livenessState` | Liveness probe; never fails because of a backing service, so outages do not restart pods |
+| `/actuator/health/readiness` | `readinessState`, `r2dbc`, `mongo`, `rabbit` | Readiness probe; takes the pod out of rotation while MySQL, MongoDB or RabbitMQ is unreachable |
+| `/actuator/health/alb` | All of the above | Load balancer target health check |
+
+A shared outage of one of these services marks every pod not ready at the same time, so the service returns errors from the load balancer instead of from the application until it recovers. Remove a service from the `readiness` and `alb` groups in `application.yml` if its outage should not stop traffic.
 
 ## How to run shell commands
 
@@ -278,7 +291,7 @@ The command fails with `User not found` if the identity does not exist in the da
 test hello
 ```
 
-The command sends a message with `StreamBridge` through the `supplier-out-0` binding to `demo.queue`. The `shell` profile has no consumer; start one with the `cloud-consumer` profile to see the message logged.
+The command sends a message with `StreamBridge` through the `demo-out` binding to `demo.queue`. The `shell` profile has no consumer; start one with the `cloud-consumer` profile to see the message logged.
 
 ## How to run tests and quality checks
 
@@ -353,7 +366,7 @@ It also copies `scripts/shell.sh`, which starts a second JVM with only the `shel
 docker exec -it <container> scripts/shell.sh
 ```
 
-The supplied `docker/prod-compose.yml` is a deployment template. Replace `your-image`, select the intended Spring profile (the template uses `dev`), and add `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `PROBE_HEADER`, and `PROBE_VALUE` to the backend's `environment` mapping. Provide all referenced variables, including the encoded JWT keys, and ensure the container can reach MySQL, MongoDB, and RabbitMQ. Hostnames such as `localhost` inside the container refer to the container itself.
+The supplied `docker/prod-compose.yml` is a deployment template. Replace `your-image` and check the Spring profile (the template uses `production`, which disables the API docs). Add `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` to the backend's `environment` mapping only if you switch to `staging`. Provide all referenced variables, including the encoded JWT keys, and ensure the container can reach MySQL, MongoDB, and RabbitMQ. Hostnames such as `localhost` inside the container refer to the container itself.
 
 Pass the environment file explicitly when starting Compose from the repository root:
 
@@ -384,7 +397,7 @@ src/main/resources/
 1. Rename the project and package from `skeleton` to your service name.
 2. Replace the example `Todo` domain, fixtures, controllers, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
-4. Replace all embedded development credentials and probe values with external configuration.
+4. Replace all embedded development credentials with external configuration.
 5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.
 6. Add tests for new authorization rules and API behavior.
 7. Install the pre-commit hook with `./gradlew installGitHook`, and run `./gradlew check` before committing.

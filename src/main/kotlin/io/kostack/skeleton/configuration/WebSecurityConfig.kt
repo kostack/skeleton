@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.core.annotation.Order
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager
-import org.springframework.security.authorization.AuthorizationDecision
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.ServerHttpSecurity
@@ -20,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
-import reactor.core.publisher.Mono
 
 @Configuration
 @EnableWebFluxSecurity
@@ -35,6 +33,12 @@ class WebSecurityConfig(
         "/v3/api-docs/**"
       )
 
+    private val HEALTH_RESOURCES =
+      arrayOf(
+        "/actuator/health",
+        "/actuator/health/**"
+      )
+
     private val API_RESOURCES =
       arrayOf(
         "/api/**"
@@ -45,6 +49,10 @@ class WebSecurityConfig(
   @Bean
   @Profile("dev", "staging")
   fun apiDocsSecurity(http: ServerHttpSecurity): SecurityWebFilterChain {
+    check(webSecurityProperties.basicAuthUser.isNotBlank() && webSecurityProperties.basicAuthPassword.isNotBlank()) {
+      "web-security.basic-auth-user and web-security.basic-auth-password must be set (BASIC_AUTH_USER, BASIC_AUTH_PASSWORD)"
+    }
+
     val encoder: PasswordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
 
     val userDetailsService =
@@ -85,14 +93,9 @@ class WebSecurityConfig(
       .logout { it.disable() }
       .authorizeExchange { exchanges ->
         exchanges
-          .pathMatchers("/actuator/**")
-          .access { _, context ->
-            val header =
-              context.exchange.request.headers
-                .getFirst(webSecurityProperties.probeHeader)
-            val allowed = webSecurityProperties.probeValue == header
-            Mono.just(AuthorizationDecision(allowed))
-          }.pathMatchers(*API_RESOURCES)
+          .pathMatchers(*HEALTH_RESOURCES)
+          .permitAll()
+          .pathMatchers(*API_RESOURCES)
           .authenticated()
           .anyExchange()
           .authenticated()

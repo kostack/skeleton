@@ -2,12 +2,3 @@ spring:
   web:
     error:
       include-binding-errors: always
-
-logging:
-  level:
-    io.kostack: INFO
-    org:
-      springframework:
-        security: INFO
-        data:
-          mongodb: INFO

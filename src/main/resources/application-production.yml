@@ -1,11 +1,13 @@
-spring:
-  web:
-    error:
-      include-binding-errors: always
+springdoc:
+  api-docs:
+    enabled: false
+
+scalar:
+  enabled: false
 
 logging:
   level:
-    io.kostack: WARN
+    io.kostack: ERROR
     org:
       springframework:
         security: ERROR
