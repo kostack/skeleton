@@ -49,11 +49,11 @@ class TodoServiceImpl(
     return save(todo)
   }
 
-  override suspend fun complete(todo: Todo): Todo {
+  override suspend fun complete(todo: Todo) {
     if (todo.completed) {
       throw ResponseStatusException(HttpStatus.CONFLICT, "Todo is already completed")
     }
-    return save(todo.copy(completed = true))
+    save(todo.copy(completed = true))
   }
 
   override suspend fun delete(todo: Todo) = todoRepository.delete(todo)

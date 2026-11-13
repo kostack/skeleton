@@ -20,7 +20,7 @@ interface TodoService {
     user: User
   ): Todo
 
-  suspend fun complete(todo: Todo): Todo
+  suspend fun complete(todo: Todo)
 
   suspend fun delete(todo: Todo)
 
