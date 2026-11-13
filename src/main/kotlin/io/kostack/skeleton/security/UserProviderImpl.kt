@@ -14,13 +14,10 @@ class UserProviderImpl(
   override suspend fun load(
     identity: String,
     claims: Map<String, Any>
-  ): JwtUser? {
-    val roles = claims.getClaim<List<String>>("roles")
-    return userService
-      .findByIdentity(identity)
-      ?.copy(roles = roles) ?: User(
+  ): JwtUser? =
+    userService
+      .findByIdentity(identity) ?: User(
       identity = identity,
-      roles = roles
+      roles = claims.getClaim<List<String>>("roles")
     )
-  }
 }

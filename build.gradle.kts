@@ -11,6 +11,9 @@ kostack {
 }
 
 dependencies {
+  // Spring Shell: JLine line reader (Tab completion, history, line editing)
+  implementation("org.springframework.shell:spring-shell-jline")
+
   // MongoDB
   implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 
