@@ -5,6 +5,8 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.database_tools.query_mapper.extension.map
 import io.github.kostack.database_tools.query_mapper.extension.toMappedQuery
 import io.github.kostack.database_tools.query_mapper.extension.toPageRequest
+import io.github.kostack.spring_tools.dto.ApiValidation
+import io.github.kostack.spring_tools.exception.ValidationException
 import io.kostack.skeleton.controller.todo.query.TodoListQuery
 import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
@@ -25,10 +27,20 @@ class TodoServiceImpl(
 ) : TodoService {
   override suspend fun findById(id: String): Todo? = todoRepository.findById(id)
 
+  override suspend fun findByTitle(title: String): Todo? = todoRepository.findByTitle(title)
+
   override suspend fun create(
     todoRequest: TodoCreateRequest,
     user: User
   ): Todo {
+    if (findByTitle(todoRequest.title) != null) {
+      throw ValidationException(
+        listOf(
+          ApiValidation.Violation(fieldId = "title", message = "Title already exists")
+        )
+      )
+    }
+
     val todo = Todo(id = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
     return todoRepository.save(todo)
   }

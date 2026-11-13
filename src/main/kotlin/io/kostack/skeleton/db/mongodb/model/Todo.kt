@@ -16,5 +16,5 @@ data class Todo(
   @Indexed @CreatedDate val createdAt: Instant = Instant.now(),
   @LastModifiedDate val lastModifiedAt: Instant = Instant.now(),
   @Indexed val createdBy: String,
-  @Version val version: String? = null
+  @Version val version: Long? = null
 )

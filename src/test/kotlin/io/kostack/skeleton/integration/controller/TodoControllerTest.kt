@@ -85,4 +85,79 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectStatus()
         .isNotFound
     }
+
+  @Test
+  @Order(4)
+  fun `complete todo`() =
+    runTest {
+      val client = clientFor(user("admin-1"))
+      val todoId =
+        client
+          .get()
+          .uri("/api/v1/todos")
+          .accept(MediaType.APPLICATION_JSON)
+          .exchange()
+          .expectStatus()
+          .isOk
+          .expectBody<Pagination<TodoListResponse>>()
+          .returnResult()
+          .responseBody!!
+          .content
+          .first()
+          .id
+
+      client
+        .patch()
+        .uri("/api/v1/todos/{todoId}/complete", todoId)
+        .exchange()
+        .expectStatus()
+        .isNoContent
+        .expectBody()
+        .isEmpty
+
+      client
+        .get()
+        .uri("/api/v1/todos/{todoId}", todoId)
+        .accept(MediaType.APPLICATION_JSON)
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<TodoResponse>()
+        .value { response -> assertEquals(true, response?.completed) }
+    }
+
+  @Test
+  @Order(5)
+  fun `create todo`() =
+    runTest {
+      clientFor(user("admin-1"))
+        .post()
+        .uri("/api/v1/todos")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("title" to "Write integration tests"))
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<TodoResponse>()
+        .value { response ->
+          assertEquals("Write integration tests", response?.title)
+          assertEquals(false, response?.completed)
+        }
+    }
+
+  @Test
+  @Order(6)
+  fun `create todo with invalid title returns 400`() =
+    runTest {
+      clientFor(user("admin-1"))
+        .post()
+        .uri("/api/v1/todos")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("title" to "abc"))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
 }

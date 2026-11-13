@@ -9,13 +9,13 @@ import jakarta.validation.constraints.Size
 import org.springframework.data.domain.Sort
 
 @SortableDefaults(
-  defaultSortField = "createdAt",
+  defaultSortField = "lastModifiedAt",
   defaultSortDirection = Sort.Direction.DESC,
   maxPageSize = 10
 )
 @Sortable(name = "title")
 @Sortable(name = "completed")
-@Sortable(name = "createdAt")
+@Sortable(name = "lastModifiedAt")
 data class TodoListQuery(
   @field:Schema(required = false)
   @field:Size(min = 2, max = 100)
