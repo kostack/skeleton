@@ -12,19 +12,13 @@ class ApiControllerTest : BaseControllerIntegrationTest() {
   @Test
   fun `authenticated request returns current user`() =
     runTest {
-      val token = accessToken("admin-1")
-      val (headerName, headerValue) = authorizationHeader(token)
-
-      webTestClient
+      clientFor(user("admin-1"))
         .get()
         .uri { uriBuilder ->
           uriBuilder
             .path("/api/me")
             .build()
-        }.header(
-          headerName,
-          headerValue
-        ).accept(MediaType.APPLICATION_JSON)
+        }.accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk

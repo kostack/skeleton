@@ -49,8 +49,6 @@ abstract class BaseControllerIntegrationTest {
       "Test user not found: $identity. Load fixtures before authenticating."
     }
 
-  protected suspend fun accessToken(identity: String): String = encoder.encode(user(identity))
-
   protected fun authorizationHeader(accessToken: String): Pair<String, String> {
     val header = jwtProperties.authorizationHeader
     val value =
@@ -60,5 +58,13 @@ abstract class BaseControllerIntegrationTest {
         "${header.prefix} $accessToken"
       }
     return header.name to value
+  }
+
+  protected suspend fun clientFor(user: User): WebTestClient {
+    val (header, value) = authorizationHeader(encoder.encode(user))
+    return webTestClient
+      .mutate()
+      .defaultHeader(header, value)
+      .build()
   }
 }

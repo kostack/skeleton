@@ -18,10 +18,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
   @Order(1)
   fun `list todos`() =
     runTest {
-      val token = accessToken("admin-1")
-      val (headerName, headerValue) = authorizationHeader(token)
-
-      webTestClient
+      clientFor(user("admin-1"))
         .get()
         .uri { uriBuilder ->
           uriBuilder
@@ -29,8 +26,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
             .queryParam("completed", "false")
             .queryParam("sort", "title,desc")
             .build()
-        }.header(headerName, headerValue)
-        .accept(MediaType.APPLICATION_JSON)
+        }.accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk
