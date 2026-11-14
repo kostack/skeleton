@@ -1,6 +1,4 @@
 spring:
-  config:
-    import: optional:file:docker/.env[.properties]
   web:
     error:
       include-binding-errors: always

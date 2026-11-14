@@ -16,6 +16,8 @@ cors:
 spring:
   application:
     name: skeleton-service
+  config:
+    import: optional:file:docker/.env[.properties]
   webflux:
     apiversion:
       default: 1
