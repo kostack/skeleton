@@ -8,15 +8,15 @@ import org.springframework.context.annotation.Profile
 import java.util.function.Consumer
 
 @Configuration
-class Demo {
+class DemoStream {
   @Profile("cloud-consumer")
   @Bean
-  fun consumer(): Consumer<String> =
+  fun demo(): Consumer<String> =
     Consumer { msg ->
       log.info("Received message: {}", msg)
     }
 
   companion object {
-    val log: Logger = LoggerFactory.getLogger(Demo::class.java)
+    val log: Logger = LoggerFactory.getLogger(DemoStream::class.java)
   }
 }

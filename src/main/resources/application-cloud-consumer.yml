@@ -3,10 +3,10 @@ spring:
     web-application-type: none
   cloud:
     function:
-      definition: consumer
+      definition: demo
     stream:
       bindings:
-        consumer-in-0:
+        demo-in-0:
           destination: demo.queue
           group: skeleton-service
           consumer:
@@ -16,7 +16,7 @@ spring:
             back-off-max-interval: 5000
       rabbit:
         bindings:
-          consumer-in-0:
+          demo-in-0:
             consumer:
               acknowledge-mode: auto
               auto-bind-dlq: true
