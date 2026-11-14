@@ -1,18 +1,3 @@
-cors:
-  path-pattern: "/**"
-  # Comma-separated origin patterns
-  allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:}
-  allowed-methods:
-    - GET
-    - POST
-    - PUT
-    - PATCH
-    - DELETE
-    - OPTIONS
-    - HEAD
-  allowed-headers:
-    - "*"
-  allow-credentials: false
 spring:
   application:
     name: skeleton-service
@@ -61,6 +46,22 @@ spring:
       bindings:
         demo-out:
           destination: demo.queue
+
+cors:
+  path-pattern: "/**"
+  # Comma-separated origin patterns
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:}
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+    - HEAD
+  allowed-headers:
+    - "*"
+  allow-credentials: false
 
 management:
   server:
