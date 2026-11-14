@@ -128,3 +128,7 @@ scalar:
   url: "/v3/api-docs"
   page-title: "API Documentation"
   telemetry: false
+
+logging:
+  level:
+    root: ${LOGGING_LEVEL:ERROR}

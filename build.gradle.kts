@@ -6,9 +6,8 @@ group = "io.github.kostack"
 description = "Skeleton project for Spring Boot"
 
 kostack {
-  coverageMinimum = 0.7
+  coverageMinimum = 0.8
   coverageExclusions.add("**/generated/**")
-  coverageExclusions.addAll("**/skeleton/Application*.class")
 }
 
 dependencies {

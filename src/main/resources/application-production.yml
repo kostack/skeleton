@@ -4,12 +4,3 @@ springdoc:
 
 scalar:
   enabled: false
-
-logging:
-  level:
-    io.kostack: ERROR
-    org:
-      springframework:
-        security: ERROR
-        data:
-          mongodb: ERROR

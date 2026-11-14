@@ -27,7 +27,7 @@ The repository includes the Gradle wrapper, so a separate Gradle installation is
 
 ### Build conventions
 
-The build setup (plugins, Java toolchain, shared dependencies, Spotless, JaCoCo, `bootRun`, `bootRunConsumer`, `installGitHook`) comes from the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugins. `settings.gradle.kts` applies `io.github.kostack.settings`, and `build.gradle.kts` applies `io.github.kostack.spring-service` and adds only what is specific to this service (MongoDB, MySQL/R2DBC, Flyway, logback-gelf). To upgrade the shared setup, change the `io.github.kostack.settings` version in `settings.gradle.kts`.
+The build setup (plugins, Java toolchain, shared dependencies, Spotless, JaCoCo, `bootRun`, `bootRunConsumer`, `installGitHook`) comes from the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugins. `settings.gradle.kts` applies `io.github.kostack.settings`, and `build.gradle.kts` applies `io.github.kostack.spring-service` and adds only what is specific to this service (MongoDB, MySQL/R2DBC, Flyway, logback-gelf). To upgrade the shared setup, change the `io.github.kostack.settings` version in `settings.gradle.kts`. Plugins are resolved from Maven Local first, then Maven Central and the Gradle Plugin Portal, so a version published locally with `publishToMavenLocal` (for example a release candidate) takes precedence.
 
 The plugins are published to Maven Central, which `settings.gradle.kts` lists in its `pluginManagement` repositories.
 
@@ -82,6 +82,7 @@ Configure these values for your local services:
 | --- | --- | --- |
 | `SERVER_PORT` | `8080` | HTTP port of the application; change it if another local app uses `8080` |
 | `MANAGEMENT_SERVER_PORT` | `8081` | Actuator port (health, info, metrics); keep it unreachable from the public network |
+| `LOGGING_LEVEL` | `INFO` | Root log level (`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `OFF`); defaults to `ERROR` when unset |
 | `MONGO_URI` | `mongodb://localhost:27017/skeleton?authSource=admin` | MongoDB connection URI |
 | `MYSQL_URL` | `mysql://localhost:3306` | MySQL host URL without the database name |
 | `MYSQL_DB` | `skeleton` | MySQL database/schema |
@@ -174,7 +175,7 @@ Available profile-specific configuration files are:
 
 Producer bindings are part of `application.yml` and apply to every profile, so `StreamBridge` can publish from any of them. For example, `demo-out` sends to `demo.queue`.
 
-Consumers belong to the `cloud-consumer` profile, defined in `application-cloud-consumer.yml`: the `consumer` function on `demo.queue` (group `skeleton-service`), its retries, and the dead-letter queue. The `consumer` bean in `cloud/stream/Demo.kt` is created only with this profile.
+Consumers belong to the `cloud-consumer` profile, defined in `application-cloud-consumer.yml`: the `demo` function on `demo.queue` (group `skeleton-service`), its retries, and the dead-letter queue. The `demo` bean in `cloud/stream/DemoStream.kt` is created only with this profile.
 
 The `dev`, `staging`, and `test` profiles include `cloud-consumer` through a profile group. `shell` and `production` do not, so they publish but never consume. Add the profile explicitly when a deployment must consume, for example `SPRING_PROFILES_ACTIVE=production,cloud-consumer`.
 

@@ -4,11 +4,3 @@ spring:
   shell:
     interactive:
       enabled: true
-logging:
-  level:
-    io.kostack: WARN
-    org:
-      springframework:
-        security: WARN
-        data:
-          mongodb: WARN
