@@ -11,7 +11,7 @@ A Kotlin and Spring Boot skeleton for building reactive services with WebFlux, J
 - Flyway database migrations
 - Spring Cloud Stream with RabbitMQ
 - OpenAPI with a Scalar API reference
-- JUnit 5, MockK, Reactor Test, JaCoCo, and Spotless
+- JUnit 5, MockK, Reactor Test, Testcontainers, JaCoCo, and Spotless
 
 ## Prerequisites
 
@@ -22,6 +22,7 @@ Install or provide:
 - MongoDB running on port `27017`
 - RabbitMQ running on port `5672`
 - OpenSSL, if you need to generate local JWT keys
+- Docker, to run the integration tests (Testcontainers)
 
 The repository includes the Gradle wrapper, so a separate Gradle installation is not required.
 
@@ -296,7 +297,7 @@ The command sends a message with `StreamBridge` through the `demo-out` binding t
 
 ## How to run tests and quality checks
 
-Tests use the configured MySQL, MongoDB, RabbitMQ, and JWT environment variables. Controller integration tests clear application tables and load fixtures, including purging fixture data in the configured databases. Use dedicated test databases and override `MYSQL_DB` and `MONGO_URI` in the process environment before running them.
+Integration tests start their own MySQL, MongoDB, and RabbitMQ with [Testcontainers](https://testcontainers.com), so they need a running Docker daemon but never touch the shared local services. `src/test/kotlin/io/kostack/skeleton/integration/TestcontainersConfiguration.kt` defines the containers; `@ServiceConnection` replaces the R2DBC, Flyway, MongoDB, and RabbitMQ connection settings from `docker/.env`. The other variables, such as the JWT keys, still come from `docker/.env`. The containers start once per cached Spring context and are removed when the test JVM exits. Controller integration tests clear application tables and load fixtures in these containers.
 
 Tests always run with the `test` profile (which also includes `cloud-consumer`), whatever `springProfile` or `SPRING_PROFILES_ACTIVE` is set to; the fixtures they load exist only with the `test` and `shell` profiles. Gradle loads `docker/.env.test` if it exists, otherwise `docker/.env`.
 

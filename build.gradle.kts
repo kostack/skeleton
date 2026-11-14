@@ -26,4 +26,12 @@ dependencies {
   // JDBC (required by Flyway) and MySQL driver
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   runtimeOnly("com.mysql:mysql-connector-j")
+
+  // Testcontainers: MySQL, MongoDB and RabbitMQ for integration tests, wired via @ServiceConnection
+  testImplementation("org.springframework.boot:spring-boot-testcontainers")
+  testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+  testImplementation("org.testcontainers:testcontainers-mysql")
+  testImplementation("org.testcontainers:testcontainers-r2dbc")
+  testImplementation("org.testcontainers:testcontainers-mongodb")
+  testImplementation("org.testcontainers:testcontainers-rabbitmq")
 }
