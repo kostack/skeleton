@@ -59,7 +59,10 @@ R2DBC:
 4. `db/r2dbc/repository/XxxRepository.kt`: `CoroutineCrudRepository<Xxx, Long>` with only the query
    methods the requested actions need. When an action takes the entity from the path, add
    `suspend fun findByIdentifier(identifier: String): Xxx?` (or
-   `findByIdentifierAndCreatedBy(identifier, createdBy)` for creator-private resources).
+   `findByIdentifierAndCreatedBy(identifier, createdBy)` for creator-private resources). Bulk
+   deletes of children use `@Modifying @Query("DELETE FROM <children> WHERE <parent>_id = :parentId")`
+   returning `Long`; a row lock for a delete uses
+   `@Query("SELECT * FROM xxxs WHERE id = :id FOR UPDATE") suspend fun findByIdForUpdate(id: Long): Xxx?`.
 5. A new `src/main/resources/db/migration/V<next>__<description>.sql` matching the entity: snake_case
    columns, `DATETIME(6)` timestamps, `version BIGINT NOT NULL DEFAULT 0`,
    `CONSTRAINT uk_xxxs_identifier UNIQUE (identifier)`, foreign keys named `fk_xxxs_<col>`, and
@@ -106,7 +109,11 @@ Add each of these only when a requested action uses it.
   `@Min(0)`.
 - `resolver/XxxArgumentResolver.kt`: a `@Component` (Spring registers it automatically; never add it to
   the WebFlux configuration) that reads the `xxxId` path parameter, loads through the repository
-  and throws `ResponseStatusException(HttpStatus.NOT_FOUND)` when the entity is missing. For
+  and throws `ResponseStatusException(HttpStatus.NOT_FOUND)` when the entity is missing.
+  `getPathParameter` throws when the variable is absent, so when the same entity is also resolved
+  from a query parameter (a child list such as `GET /children?xxxId=...`), read the path variable
+  from `HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE` and fall back to
+  `getRequestParameter("xxxId", exchange)` (missing → 400). For
   creator-private resources, load by identifier and owner, taking the user from
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User` and throwing
   `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing (never `authentication.name`).
@@ -148,8 +155,26 @@ Logic inside the handler:
 - List uses `GridQueryBuilder` + `table<Xxx>("x")` and `pageable.toPageRequest(XxxListFilter::class)`.
   Use `.join(parent).on(...)` when a filter or column comes from a related table,
   `.aggregateJoin(child).on(...)` for counts, and `.where(x[Xxx::ownerId] eq principal.identity)` to
-  scope the list to the current user.
+  scope the list to the current user. Conditions compare a column property with a value
+  (`x[Xxx::parentId] eq value`); `x[...]` only takes a property, never a value. Declare joins before
+  `.where(...)` so the query reads in SQL order.
+- A list scoped to a required parent (`GET /children?parentId=...`) takes
+  `@Parameter(description = "...") @RequestParam parentId: String` (for the API docs) plus
+  `@Parameter(hidden = true) @ResolvedArgument parent: Parent`, so an unknown parent is a 404 and
+  access rules can use `#parent`. Filter with `.where(child[Child::parentId] eq requireNotNull(parent.id))`
+  and keep the parent id out of the filter class, so the condition isn't applied twice.
 - Get loads the related entities it returns as summaries and maps them with `toResponse(...)`.
+- Delete returns 204. When the entity has children that must go with it, delete them in the same
+  transaction (inject `TransactionalOperator`, use `executeAndAwait { }`):
+  1. lock the row with `findByIdForUpdate(id)`; when it returns `null` a concurrent delete already
+     removed it, so return (the requested state is reached);
+  2. delete the children with the bulk `@Modifying` query;
+  3. delete the entity with `deleteById(id)`.
+  The lock makes concurrent child inserts wait on their foreign key check, so no child can be added
+  between steps 2 and 3. Those inserts then fail once the delete commits: the child create operation
+  catches `DataIntegrityViolationException` around `save` and throws a `ValidationException` on the
+  parent id field, the same as for an unknown parent. Prefer this over `ON DELETE CASCADE` when other
+  foreign keys point back at the children (cycles), because the deletion order then stays explicit.
 
 ## 5. Fixtures
 
@@ -189,6 +214,8 @@ Logic inside the handler:
       owner-scoped resolver
 - [ ] References are public ids in the API, validated as `ValidationException` on their field
 - [ ] Updates are PUT replacements: required fields non-null, omitted or `null` optionals clear
+- [ ] Deletes with children run in one transaction that locks the row first; child creates map the
+      foreign key violation to a `ValidationException`
 - [ ] Uniqueness is enforced by the database and mapped to `ValidationException`
 - [ ] A new migration exists with `uk_`/`fk_`/`idx_` names, and no existing migration was edited
 - [ ] No `service/` classes in the scaffold; no blocking calls (`.block()`, JDBC, `Thread.sleep`)

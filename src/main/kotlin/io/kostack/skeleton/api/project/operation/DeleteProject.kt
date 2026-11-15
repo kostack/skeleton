@@ -34,7 +34,6 @@ class DeleteProject(
   ) {
     val id = requireNotNull(project.id)
     transactionalOperator.executeAndAwait {
-      // Concurrent task inserts wait for this lock; a project already deleted concurrently needs nothing more
       projectRepository.findByIdForUpdate(id) ?: return@executeAndAwait
       taskRepository.deleteAllByProjectId(id)
       projectRepository.deleteById(id)

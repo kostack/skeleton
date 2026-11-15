@@ -32,7 +32,16 @@ copy. Where this skill and `CLAUDE.md` disagree, `CLAUDE.md` wins.
 - Related ids in request bodies: test that an unknown id returns 400 with a violation on that
   `fieldId`, and that nothing was persisted.
 - For list endpoints with several filters, a small `list(vararg params)` helper keeps each test
-  focused on its query. Test each filter alone and combined.
+  focused on its query. Test each filter alone and combined. For a list scoped to a required parent,
+  test a missing parent id (400) and an unknown one (404).
+- Deletes with children: assert the entity and all its children are gone, and that other parents'
+  children remain. For rejected deletes (403, 404, 401), assert nothing was removed.
+- Races: when an operation guards against a concurrent one (a delete racing child creates, two
+  deletes of the same entity), fire them together with the base class's concurrency helper and
+  assert outcomes, not ordering: every status is in the allowed set (for example 204, 201 or 400;
+  204 or 404), at least one request reached the goal, no 5xx occurred, and no orphan rows exist.
+  These tests can't force an interleaving, so rerun them a few times (with Gradle,
+  `./gradlew test --rerun --tests '<Class>'`; without `--rerun` an up-to-date task is skipped).
 
 ## Workflow
 
