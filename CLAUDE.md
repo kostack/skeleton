@@ -32,9 +32,10 @@ resources/db/migration          Flyway: V<n>__<description>.sql
 ```
 
 Reference implementations: `task` (shared; a parent reference, a user reference, PUT replacement,
-a list filtered through a joined table) and `project` (an owner set from the principal, an
-owner-scoped list, a `@PreAuthorize` owner rule, an optional 1:1 reference, an aggregate count in the
-list). When in doubt, copy their shape. No creator-private (`createdBy`) resource exists at the
+a list scoped to a required parent resolved from a query parameter: `ListTask`) and `project` (an
+owner set from the principal, an owner-scoped list, a `@PreAuthorize` owner rule, an optional 1:1
+reference, an aggregate count in the list, and a delete that removes its children in one locked
+transaction: `DeleteProject`). When in doubt, copy their shape. No creator-private (`createdBy`) resource exists at the
 moment; follow the ownership rules below for one.
 
 By default there is no service layer. Each operation class is the use case: it handles one endpoint
@@ -119,6 +120,13 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   (see `ListTask`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
   columns, and `.aggregateJoin(...)` with `@SelectAggregate`/`@QueryField(aggregate = ...)` for counts
   (see `ListProject`).
+- A list scoped to a required parent takes `@RequestParam parentId: String` plus
+  `@ResolvedArgument parent: Parent`; the parent's resolver falls back from the path variable to the
+  query parameter (see `ProjectArgumentResolver`). Unknown parent → 404, missing parameter → 400.
+- Deleting an entity with children runs in one `TransactionalOperator.executeAndAwait { }`: lock the
+  row (`findByIdForUpdate`), delete the children (`@Modifying @Query`), then the entity. Operations
+  that create children catch `DataIntegrityViolationException` and report a `ValidationException`
+  on the parent id field (see `DeleteProject`, `CreateTask`).
 
 ## Persistence
 
@@ -146,7 +154,7 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   `references`, `concurrently { }`) and cover the operation's business rules too. Use the
   `spring-controller-integration-tests` skill. Reference tests: `integration/api/task/operation/`
   and `integration/api/project/operation/` (`ListTaskIntegrationTest` shows a `list(...)` helper for
-  filter tests).
+  filter tests; `DeleteProjectIntegrationTest` shows race tests with `concurrently { }`).
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
   In `api/`, only authorization classes get unit tests; operations and resolvers are covered by
   the integration tests. Outside `api/`, unit test classes with their own logic (`security/`).
