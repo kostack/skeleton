@@ -110,7 +110,9 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   `TaskAssigneeResponse`). A user summary holds only `id` (the identity) and `name`; email is exposed
   only through `GET /me`.
 - Request bodies are commands (`command/<Resource>CreateCommand`), validated with `@Valid` and
-  `@field:` constraints. Report business validation errors as
+  `@field:` constraints. Unknown fields are ignored, never checked or rejected (no `@JsonAnySetter`
+  collectors, no `@Null` guards): fields a client may not set, such as an owner or an immutable
+  parent id, are simply not part of the command. Report business validation errors as
   `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
 - References in commands and responses are public ids: the related entity's `identifier`, or a
   user's `identity`. Load the related entity and report a missing or unsuitable one as a
@@ -144,7 +146,9 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   Name constraints `uk_<table>_<cols>`, foreign keys `fk_<table>_<col>` and indexes
   `idx_<table>_<cols>`. Use `DATETIME(6)` for
   timestamps.
-- All time is UTC.
+- All time is UTC. Use `java.time.Instant` for every date and time, including date-like fields such
+  as due dates (column `DATETIME(6)`, JSON as an ISO-8601 instant). Never use `LocalDate`,
+  `LocalDateTime`, `OffsetDateTime`, `ZonedDateTime` or `java.util.Date`.
 
 ## Tests
 

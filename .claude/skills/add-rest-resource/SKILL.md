@@ -47,7 +47,9 @@ R2DBC:
 1. `db/r2dbc/model/Xxx.kt`: a `@Table("xxxs")` data class with `@Id id: Long? = null`,
    `identifier: String = UUID.randomUUID().toString()`, the domain fields,
    `@CreatedDate createdAt`, `@LastModifiedDate lastModifiedAt` (both `Instant = Instant.now()`), and
-   `@Version version: Long? = null`. Add `createdBy: String` (column `created_by VARCHAR(36) NOT NULL`)
+   `@Version version: Long? = null`. Every date or time field is an `Instant` (column `DATETIME(6)`),
+   including date-like fields such as due dates; never `LocalDate`, `LocalDateTime`, `OffsetDateTime`,
+   `ZonedDateTime` or `java.util.Date`. Add `createdBy: String` (column `created_by VARCHAR(36) NOT NULL`)
    only for creator-private resources.
 2. Enums used by entities go in `db/r2dbc/enums/`. They are stored by name in a `VARCHAR` column;
    give the field a default when the domain has one.
@@ -90,7 +92,8 @@ Add each of these only when a requested action uses it.
 - `command/XxxCreateCommand.kt` and `command/XxxUpdateCommand.kt`: request bodies; constraints use
   `@field:`. References are public ids: the related entity's `identifier`, or a user's identity.
   Never accept internal ids or fields the server sets (owner, `createdBy`); they come from the
-  principal.
+  principal. Leave such fields out of the command and let unknown fields be ignored: never check or
+  reject them (no `@JsonAnySetter` collectors, no `@Null` guards).
 - Responses: returning the entity directly is fine if internal fields are hidden with `@JsonIgnore`.
   As soon as the shape differs (references as public ids, nested summaries), add
   `response/XxxResponse.kt` and `response/ResponseExtensions.kt` with `fun Xxx.toResponse(...)`,
