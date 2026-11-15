@@ -4,7 +4,7 @@ import io.github.kostack.fixtures.AbstractFixture
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Todo
-import io.kostack.skeleton.service.todo.TodoService
+import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -12,7 +12,7 @@ import java.util.UUID
 @Component
 @Order(3)
 class TodoFixture(
-  val service: TodoService
+  private val todoRepository: TodoRepository
 ) : AbstractFixture() {
   override suspend fun load() {
     val project1 = referenceRepository.getReference<Project>("project_1")
@@ -31,7 +31,7 @@ class TodoFixture(
     completed: Boolean = false
   ) {
     val todo =
-      service.save(
+      todoRepository.save(
         Todo(
           identifier = UUID.randomUUID().toString(),
           title = "${faker.word().noun()} $idx",

@@ -32,9 +32,10 @@ class CreateTodoTest {
 
       val created = createTodo(TodoCreateCommand(title = title, projectId = project.identifier), user)
 
-      assertEquals(project.id, created.projectId)
-      assertEquals(user.identity, created.createdBy)
       assertEquals(title, created.title)
+      coVerify(exactly = 1) {
+        todoRepository.save(match { it.projectId == project.id && it.createdBy == user.identity && it.title == title })
+      }
     }
 
   @Test

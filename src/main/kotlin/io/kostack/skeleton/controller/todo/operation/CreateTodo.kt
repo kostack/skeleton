@@ -3,23 +3,42 @@ package io.kostack.skeleton.controller.todo.operation
 import io.github.kostack.spring_tools.dto.ApiValidation
 import io.github.kostack.spring_tools.exception.ValidationException
 import io.kostack.skeleton.controller.todo.command.TodoCreateCommand
+import io.kostack.skeleton.controller.todo.response.TodoResponse
+import io.kostack.skeleton.controller.todo.response.toResponse
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
+import io.swagger.v3.oas.annotations.Operation
+import jakarta.validation.Valid
 import org.springframework.dao.DuplicateKeyException
-import org.springframework.stereotype.Service
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.ResponseStatus
 import java.util.UUID
 
-@Service
+@TodoOperation
 class CreateTodo(
   private val todoRepository: TodoRepository,
   private val projectRepository: ProjectRepository
 ) {
+  @Operation(
+    operationId = "todo_create_action",
+    summary = "Create a todo"
+  )
+  @PostMapping(
+    version = "1+",
+    consumes = [MediaType.APPLICATION_JSON_VALUE],
+    produces = [MediaType.APPLICATION_JSON_VALUE]
+  )
+  @ResponseStatus(HttpStatus.CREATED)
   suspend operator fun invoke(
-    command: TodoCreateCommand,
-    user: User
-  ): Todo {
+    @Valid @RequestBody command: TodoCreateCommand,
+    @AuthenticationPrincipal user: User
+  ): TodoResponse {
     val project =
       projectRepository.findByIdentifier(command.projectId)
         ?: throw ValidationException(
@@ -33,7 +52,7 @@ class CreateTodo(
         projectId = requireNotNull(project.id)
       )
     return try {
-      todoRepository.save(todo)
+      todoRepository.save(todo).toResponse()
     } catch (_: DuplicateKeyException) {
       throw ValidationException(
         listOf(

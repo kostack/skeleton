@@ -5,7 +5,6 @@ import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
 import kotlinx.coroutines.flow.toList
-import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.stereotype.Service
 
 @Service

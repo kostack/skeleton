@@ -128,7 +128,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
     }
 
   @Test
-  fun `get another user's todo returns 403`() =
+  fun `get another user's todo returns 404`() =
     runTest {
       clientFor(user("user-1"))
         .get()
@@ -136,7 +136,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
-        .isForbidden
+        .isNotFound
     }
 
   // create
@@ -273,7 +273,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
     }
 
   @Test
-  fun `complete another user's todo returns 403 and leaves it unchanged`() =
+  fun `complete another user's todo returns 404 and leaves it unchanged`() =
     runTest {
       val todo = todo(4)
 
@@ -282,7 +282,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
         .exchange()
         .expectStatus()
-        .isForbidden
+        .isNotFound
 
       assertFalse(todoService.findByIdentifier(todo.identifier)!!.completed)
     }
@@ -373,7 +373,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
     }
 
   @Test
-  fun `delete another user's todo returns 403 and keeps it`() =
+  fun `delete another user's todo returns 404 and keeps it`() =
     runTest {
       val todo = todo(4)
 
@@ -382,7 +382,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .uri("/api/v1/todos/{todoId}", todo.identifier)
         .exchange()
         .expectStatus()
-        .isForbidden
+        .isNotFound
 
       assertNotNull(todoService.findByIdentifier(todo.identifier))
     }

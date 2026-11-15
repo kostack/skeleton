@@ -28,7 +28,7 @@ class CompleteTodoTest {
     runTest {
       coEvery { todoRepository.save(any()) } answers { firstArg() }
 
-      completeTodo(todo)
+      completeTodo(todo.identifier, todo)
 
       coVerify(exactly = 1) { todoRepository.save(todo.copy(completed = true)) }
     }
@@ -36,7 +36,7 @@ class CompleteTodoTest {
   @Test
   fun `complete does nothing when the todo is already completed`() =
     runTest {
-      completeTodo(todo.copy(completed = true))
+      completeTodo(todo.identifier, todo.copy(completed = true))
 
       coVerify(exactly = 0) { todoRepository.save(any()) }
     }
@@ -46,7 +46,7 @@ class CompleteTodoTest {
     runTest {
       coEvery { todoRepository.save(any()) } throws OptimisticLockingFailureException("version mismatch")
 
-      completeTodo(todo)
+      completeTodo(todo.identifier, todo)
 
       coVerify(exactly = 1) { todoRepository.save(any()) }
     }

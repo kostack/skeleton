@@ -9,6 +9,11 @@ import org.springframework.stereotype.Repository
 interface TodoRepository : CoroutineCrudRepository<Todo, Long> {
   suspend fun findByIdentifier(identifier: String): Todo?
 
+  suspend fun findByIdentifierAndCreatedBy(
+    identifier: String,
+    createdBy: String
+  ): Todo?
+
   fun findAllByProjectIdAndCreatedByOrderByCreatedAt(
     projectId: Long,
     createdBy: String
