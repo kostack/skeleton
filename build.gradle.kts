@@ -32,3 +32,8 @@ dependencies {
   testImplementation("org.testcontainers:testcontainers-mongodb")
   testImplementation("org.testcontainers:testcontainers-rabbitmq")
 }
+
+// Same JVM time zone as Application.main(), which @SpringBootTest does not call
+tasks.test {
+  systemProperty("user.timezone", "UTC")
+}

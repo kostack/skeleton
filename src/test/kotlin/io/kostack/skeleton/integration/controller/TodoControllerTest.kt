@@ -18,6 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Fixtures:
@@ -230,7 +231,10 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectBody()
         .isEmpty
 
-      assertEquals(true, todoService.findByIdentifier(todo.identifier)?.completed)
+      val stored = todoService.findByIdentifier(todo.identifier)
+      assertEquals(true, stored?.completed)
+      assertEquals(todo.createdAt, stored?.createdAt)
+      assertTrue(stored!!.lastModifiedAt > todo.lastModifiedAt, "lastModifiedAt was not updated")
     }
 
   @Test
@@ -274,6 +278,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       val stored = todoService.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.version, stored?.version)
+      assertEquals(todo.lastModifiedAt, stored?.lastModifiedAt)
     }
 
   @Test

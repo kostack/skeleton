@@ -4,18 +4,18 @@ import io.github.kostack.jwt_security.dto.JwtUser
 import io.github.kostack.jwt_security.extensions.getClaim
 import io.github.kostack.jwt_security.service.UserProvider
 import io.kostack.skeleton.db.mongodb.model.User
-import io.kostack.skeleton.service.user.UserService
+import io.kostack.skeleton.db.mongodb.repository.UserRepository
 import org.springframework.stereotype.Service
 
 @Service
 class UserProviderImpl(
-  private val userService: UserService
+  private val userRepository: UserRepository
 ) : UserProvider {
   override suspend fun load(
     identity: String,
     claims: Map<String, Any>
   ): JwtUser? =
-    userService
+    userRepository
       .findByIdentity(identity) ?: User(
       identity = identity,
       roles = claims.getClaim<List<String>>("roles")

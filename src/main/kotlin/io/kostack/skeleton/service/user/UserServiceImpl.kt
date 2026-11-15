@@ -9,6 +9,4 @@ class UserServiceImpl(
   private val userRepository: UserRepository
 ) : UserService {
   override suspend fun save(user: User): User = userRepository.save(user)
-
-  override suspend fun findByIdentity(identity: String): User? = userRepository.findUserByIdentity(identity)
 }

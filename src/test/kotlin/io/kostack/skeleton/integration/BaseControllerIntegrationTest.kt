@@ -4,8 +4,8 @@ import io.github.kostack.fixtures.DataFixtureManager
 import io.github.kostack.fixtures.ReferenceRepository
 import io.github.kostack.jwt_security.autoconfigure.SecurityProperties
 import io.github.kostack.jwt_security.encoder.JwtEncoder
+import io.github.kostack.jwt_security.service.UserProvider
 import io.kostack.skeleton.db.mongodb.model.User
-import io.kostack.skeleton.service.user.UserService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,7 +29,7 @@ abstract class BaseControllerIntegrationTest {
   @Autowired protected lateinit var references: ReferenceRepository
 
   @Autowired
-  protected lateinit var userService: UserService
+  protected lateinit var userProvider: UserProvider
 
   @Autowired
   protected lateinit var encoder: JwtEncoder
@@ -50,8 +50,11 @@ abstract class BaseControllerIntegrationTest {
       dataFixtureManager.loadFixtures(true)
     }
 
-  protected suspend fun user(identity: String): User =
-    requireNotNull(userService.findByIdentity(identity)) {
+  protected suspend fun user(
+    identity: String,
+    claims: Map<String, Any> = emptyMap()
+  ): User =
+    requireNotNull(userProvider.load(identity, claims) as User) {
       "Test user not found: $identity. Load fixtures before authenticating."
     }
 
