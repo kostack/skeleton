@@ -31,6 +31,9 @@ dependencies {
   testImplementation("org.testcontainers:testcontainers-r2dbc")
   testImplementation("org.testcontainers:testcontainers-mongodb")
   testImplementation("org.testcontainers:testcontainers-rabbitmq")
+
+  // Architecture and convention tests
+  testImplementation("io.github.kostack:service-conventions:1.0.0")
 }
 
 // Same JVM time zone as Application.main(), which @SpringBootTest does not call

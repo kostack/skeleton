@@ -68,7 +68,7 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
   `@QueryField` plus `@field:Schema(required = false)` on optional filter fields.
 - `resolver/XxxArgumentResolver.kt`: reads the `xxxId` path parameter and throws
   `ResponseStatusException(HttpStatus.NOT_FOUND)` when the entity is missing.
-- `authorization/XxxAuthorization.kt`: `@Component("xxxAuth")` with
+- `authorization/XxxAuthorization.kt` (only if access is restricted): `@Component("xxxAuth")` with
   `fun requireOwner(xxx: Xxx, principal: User): Mono<Boolean> = mono { ... }`.
 - `XxxController.kt`:
   - `@Tag`, `@RequestMapping("/api/{version}/xxxs")`, `@RestController`
@@ -77,8 +77,9 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
   - `version = "1+"` and explicit `produces`/`consumes` on each mapping
   - `@ResponseStatus(HttpStatus.CREATED)` for create, `NO_CONTENT` for body-less updates and deletes
   - path endpoints take `@PathVariable xxxId: String` +
-    `@Parameter(hidden = true) @ResolvedArgument xxx: Xxx` and
-    `@PreAuthorize("@xxxAuth.requireOwner(#xxx, authentication.principal)")`
+    `@Parameter(hidden = true) @ResolvedArgument xxx: Xxx`
+  - add `@PreAuthorize("@xxxAuth.requireOwner(#xxx, authentication.principal)")` only on endpoints
+    whose access is restricted
 
 ## 5. Fixtures and manual calls
 
@@ -104,7 +105,8 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 
 - [ ] Entities returned directly don't expose internal fields; any response DTOs have a `toResponse()`
 - [ ] Every mapping has `version = "1+"` and an `operationId` of the form `xxx_<verb>_action`
-- [ ] Every path endpoint has `@ResolvedArgument` + `@PreAuthorize`
+- [ ] Path endpoints load their entity with `@ResolvedArgument`
+- [ ] Endpoints with restricted access have `@PreAuthorize`
 - [ ] Uniqueness is enforced by the database and mapped to `ValidationException`
 - [ ] A new migration exists, and no existing migration was edited
 - [ ] No blocking calls (`.block()`, JDBC, `Thread.sleep`)

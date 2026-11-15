@@ -36,7 +36,8 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 - Follow `.editorconfig`: 2-space indent, 120-column lines, no wildcard imports, no trailing commas.
 - Use data classes for models and DTOs. Use expression bodies when they fit.
 - Everything is non-blocking. Use `suspend` functions and `CoroutineCrudRepository`. Never use
-  `.block()`, JPA/JDBC repositories, or `Thread.sleep`. Where Spring requires a `Mono`
+  `.block()`, `runBlocking`, JPA/JDBC repositories, or `Thread.sleep` (startup code in
+  `configuration/` is the only exception). Where Spring requires a `Mono`
   (resolvers, `@PreAuthorize` beans), wrap the code with `kotlinx.coroutines.reactor.mono { }`.
 - Don't add a custom Jackson `ObjectMapper` configuration. It was removed on purpose.
 
@@ -53,8 +54,8 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 - Path entities: take `@PathVariable <resource>Id: String` plus
   `@Parameter(hidden = true) @ResolvedArgument entity: Entity`. The resolver returns 404 through
   `ResponseStatusException(HttpStatus.NOT_FOUND)`. Controllers never load entities themselves.
-- Authorization goes on the method:
-  `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`.
+- Authorization is per endpoint, as needed. When access is restricted (for example owner-only), put it
+  on the method: `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`.
 - Get the current user with `@AuthenticationPrincipal user: User` (the Mongo `User`).
 - Response DTOs are optional. Returning an entity directly is fine (see `MeController` returning
   `User`); hide internal fields with `@JsonIgnore`. If the API shape should differ from the entity,
@@ -87,6 +88,18 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 - Test names are backtick sentences: `` `list returns only the current user's todos` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc.
+
+## Enforcement
+
+- `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` from the kostack
+  `service-conventions` library (Konsist, runs in `./gradlew test`) and enforces: controller
+  naming and package, `suspend fun *Action` handlers, `version` on every mapping, the operationId
+  pattern, no repositories in controllers, `XService`/`XServiceImpl` structure, coroutine
+  repositories, no blocking or JDBC/JPA outside `configuration/`, and migration file names.
+  If it fails, fix the code. Rules are changed in the library, for every service at once; the
+  per-service options are `legacyOperationIds` and overriding a rule without `@Test`.
+- Hooks in `.claude/settings.json`: committed migrations can't be edited, and Spotless runs
+  automatically when the agent finishes.
 
 ## Skills in this repo
 

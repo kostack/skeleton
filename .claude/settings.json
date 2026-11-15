@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew test*)",
+      "Bash(./gradlew check*)",
+      "Bash(./gradlew build*)",
+      "Bash(./gradlew spotlessApply*)",
+      "Bash(./gradlew spotlessCheck*)",
+      "Bash(./gradlew jacocoTestReport*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-migrations.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-on-stop.sh",
+            "timeout": 180,
+            "statusMessage": "Formatting with Spotless..."
+          }
+        ]
+      }
+    ]
+  }
+}
