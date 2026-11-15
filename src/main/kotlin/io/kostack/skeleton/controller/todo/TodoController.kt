@@ -2,14 +2,17 @@ package io.kostack.skeleton.controller.todo
 
 import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
+import io.kostack.skeleton.controller.todo.command.TodoCreateCommand
 import io.kostack.skeleton.controller.todo.filter.TodoListFilter
-import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
+import io.kostack.skeleton.controller.todo.operation.CompleteTodo
+import io.kostack.skeleton.controller.todo.operation.CreateTodo
+import io.kostack.skeleton.controller.todo.operation.DeleteTodo
+import io.kostack.skeleton.controller.todo.operation.ListTodo
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.controller.todo.response.TodoResponse
 import io.kostack.skeleton.controller.todo.response.toResponse
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Todo
-import io.kostack.skeleton.service.todo.TodoService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -34,7 +37,10 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/{version}/todos")
 @RestController
 class TodoController(
-  private val todoService: TodoService
+  private val listTodo: ListTodo,
+  private val createTodo: CreateTodo,
+  private val completeTodo: CompleteTodo,
+  private val deleteTodo: DeleteTodo
 ) {
   @Operation(
     operationId = "todo_list_action",
@@ -43,9 +49,9 @@ class TodoController(
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend fun listAction(
     @ParameterObject pageable: Pageable,
-    @Valid @ParameterObject query: TodoListFilter,
+    @Valid @ParameterObject filter: TodoListFilter,
     @AuthenticationPrincipal user: User
-  ): Pagination<TodoListResponse> = todoService.list(pageable, query, user)
+  ): Pagination<TodoListResponse> = listTodo(pageable, filter, user)
 
   @Operation(
     operationId = "todo_get_action",
@@ -69,9 +75,9 @@ class TodoController(
   )
   @ResponseStatus(HttpStatus.CREATED)
   suspend fun createAction(
-    @Valid @RequestBody request: TodoCreateRequest,
+    @Valid @RequestBody command: TodoCreateCommand,
     @AuthenticationPrincipal user: User
-  ): TodoResponse = todoService.create(request, user).toResponse()
+  ): TodoResponse = createTodo(command, user).toResponse()
 
   @Operation(
     operationId = "todo_complete_action",
@@ -84,7 +90,7 @@ class TodoController(
   suspend fun completeAction(
     @PathVariable todoId: String,
     @Parameter(hidden = true) @ResolvedArgument todo: Todo
-  ) = todoService.complete(todo)
+  ) = completeTodo(todo)
 
   @Operation(
     operationId = "todo_delete_action",
@@ -96,5 +102,5 @@ class TodoController(
   suspend fun deleteAction(
     @PathVariable todoId: String,
     @Parameter(hidden = true) @ResolvedArgument todo: Todo
-  ) = todoService.delete(todo)
+  ) = deleteTodo(todo)
 }
