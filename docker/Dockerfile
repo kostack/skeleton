@@ -11,7 +11,7 @@ COPY docker/execute.sh /var/www/application/execute.sh
 COPY scripts/shell.sh /var/www/application/scripts/shell.sh
 
 RUN chmod +x /var/www/application/execute.sh /var/www/application/scripts/shell.sh \
-  # The app user may create files in the working directory (Spring Shell writes its history there),
+  # The app user may create files in the working directory (Spring Shell writes its history there) \
   # but the root-owned JAR and scripts stay read-only for it
   && chown app /var/www/application
 
