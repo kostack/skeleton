@@ -13,8 +13,8 @@ import jakarta.validation.Valid
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.server.ResponseStatusException
@@ -26,21 +26,17 @@ class UpdateTask(
 ) {
   @Operation(
     operationId = "task_update_action",
-    summary = "Update a task's title, status or assignee",
-    description = "assigneeId must reference an existing user; null unassigns the task."
+    summary = "Replace a task's title, status and assignee",
+    description = "assigneeId must reference an existing user; null or omitted unassigns the task."
   )
-  @PatchMapping("/{taskId}", version = "1+", consumes = [MediaType.APPLICATION_JSON_VALUE])
+  @PutMapping("/{taskId}", version = "1+", consumes = [MediaType.APPLICATION_JSON_VALUE])
   @ResponseStatus(HttpStatus.NO_CONTENT)
   suspend operator fun invoke(
     @PathVariable taskId: String,
     @Parameter(hidden = true) @ResolvedArgument task: Task,
     @Valid @RequestBody command: TaskUpdateCommand
   ) {
-    val assigneeId =
-      when (val selection = command.assigneeId) {
-        null -> task.assigneeId
-        else -> existingUser(selection)
-      }
+    val assigneeId = command.assigneeId?.let { existingUser(it) }
     val updated =
       task.copy(
         title = command.title,

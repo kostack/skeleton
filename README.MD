@@ -244,11 +244,11 @@ For local development, generate a token with the `generate-token` shell command 
 | `POST /api/v1/projects` | Creates a project from `name` and optional `description`, owned by the current user; returns `201`, or `400` if a client sends `ownerId` | Any authenticated user |
 | `GET /api/v1/projects` | Returns paginated projects; filter by `ownerId` and `name`, sort by `name` or `createdAt` | Any authenticated user |
 | `GET /api/v1/projects/{projectId}` | Returns a project with an owner summary (`id`, `name`) and its optional featured task summary | Any authenticated user |
-| `PATCH /api/v1/projects/{projectId}` | Updates `name`, `description` or `featuredTaskId` (one of the project's own tasks; `null` clears it); returns `204` | Owner only (`403` otherwise) |
+| `PUT /api/v1/projects/{projectId}` | Replaces `name` (required) and `description` (omitted clears it); `featuredTaskId` selects one of the project's own tasks (omitted or `null` clears it); returns `204` | Owner only (`403` otherwise) |
 | `POST /api/v1/tasks` | Creates a `TODO` task from `projectId`, `title` and optional `assigneeId` (an existing user); returns `201` | Any authenticated user |
 | `GET /api/v1/tasks` | Returns paginated tasks of the required `projectId`; optional `assigneeId` and `status` filters are ANDed; sort by `title`, `status` or `createdAt` | Any authenticated user |
 | `GET /api/v1/tasks/{taskId}` | Returns a task with its `projectId` and optional assignee summary (`id`, `name`) | Any authenticated user |
-| `PATCH /api/v1/tasks/{taskId}` | Updates `title`, `status` or `assigneeId` (`null` unassigns); returns `204` | Any authenticated user |
+| `PUT /api/v1/tasks/{taskId}` | Replaces `title` and `status` (both required); `assigneeId` must be an existing user (omitted or `null` unassigns); returns `204` | Any authenticated user |
 
 Projects and tasks are identified by their public `identifier` (a UUID); the numeric primary keys stay internal. Users are identified by their `identity`. An unknown `identifier` returns `404`; an unknown related id in a request body returns `400` with a violation for that field. A user's email is exposed only through `GET /api/v1/me`.
 

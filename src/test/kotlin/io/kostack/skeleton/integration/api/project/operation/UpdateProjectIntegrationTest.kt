@@ -18,7 +18,7 @@ import kotlin.test.assertNull
  * Fixtures:
  * - project_1 (owner user_1, with a description) holds task_1 to task_4 and features task_1
  * - project_2 (owner user_2) holds task_5 and features no task
- * - name and description are replaced on every update; featuredTaskId is kept when absent or null
+ * - PUT replaces name, description and featuredTaskId; an omitted or null value clears it
  */
 class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   @Autowired
@@ -32,16 +32,17 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   private fun task(reference: Int): Task = references.getReference<Task>("task_$reference")
 
   @Test
-  fun `update changes name and description and keeps the featured task`() =
+  fun `update replaces name and description and keeps a resent featured task`() =
     runTest {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("name" to "Renamed", "description" to "New description"))
-        .exchange()
+        .bodyValue(
+          mapOf("name" to "Renamed", "description" to "New description", "featuredTaskId" to task(1).identifier)
+        ).exchange()
         .expectStatus()
         .isNoContent
         .expectBody()
@@ -55,12 +56,12 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
-  fun `update without description clears it`() =
+  fun `update without description and featuredTaskId clears both and keeps the task`() =
     runTest {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("name" to project.name))
@@ -68,7 +69,10 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .expectStatus()
         .isNoContent
 
-      assertNull(projectRepository.findByIdentifier(project.identifier)?.description)
+      val stored = projectRepository.findByIdentifier(project.identifier)
+      assertNull(stored?.description)
+      assertNull(stored?.featuredTaskId)
+      assertEquals(task(1).version, taskRepository.findByIdentifier(task(1).identifier)?.version)
     }
 
   @Test
@@ -77,7 +81,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("name" to project.name, "featuredTaskId" to task(2).identifier))
@@ -91,12 +95,12 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
-  fun `update with null featuredTaskId keeps the selection`() =
+  fun `update with null featuredTaskId clears the selection`() =
     runTest {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue("""{"name": "${project.name}", "featuredTaskId": null}""")
@@ -104,7 +108,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .expectStatus()
         .isNoContent
 
-      assertEquals(task(1).id, projectRepository.findByIdentifier(project.identifier)?.featuredTaskId)
+      assertNull(projectRepository.findByIdentifier(project.identifier)?.featuredTaskId)
     }
 
   @Test
@@ -113,7 +117,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
@@ -135,7 +139,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
@@ -153,7 +157,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   fun `update with invalid name returns 400`() =
     runTest {
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project(1).identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
@@ -173,7 +177,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
       val project = project(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("description" to "Only a description"))
@@ -190,7 +194,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
       val project = project(2)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("name" to "Taken over"))
@@ -205,7 +209,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   fun `update unknown project returns 404`() =
     runTest {
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/projects/{projectId}", "does-not-exist")
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("name" to "Renamed"))

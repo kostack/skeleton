@@ -11,12 +11,14 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Fixtures:
  * - task_1 (project_1, TODO, assigned to user_1); task_4 (project_1, TODO, unassigned)
  * - user_2 and user_3 exist; user-404 does not
- * - title and status are required on every update; assigneeId is kept when absent or null
+ * - PUT replaces title, status and assigneeId; title and status are required, an omitted or null
+ *   assigneeId unassigns the task
  */
 class UpdateTaskIntegrationTest : BaseIntegrationTest() {
   @Autowired
@@ -25,15 +27,15 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
   private fun task(reference: Int): Task = references.getReference<Task>("task_$reference")
 
   @Test
-  fun `update changes title and status and keeps the assignee`() =
+  fun `update replaces title and status and keeps a resent assignee`() =
     runTest {
       val task = task(1)
 
       clientFor(user("user-2"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("title" to "Renamed task", "status" to "IN_PROGRESS"))
+        .bodyValue(mapOf("title" to "Renamed task", "status" to "IN_PROGRESS", "assigneeId" to "user-1"))
         .exchange()
         .expectStatus()
         .isNoContent
@@ -53,7 +55,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
       val task = task(4)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("title" to task.title, "status" to task.status.name, "assigneeId" to "user-3"))
@@ -65,12 +67,12 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
-  fun `update with null assigneeId keeps the assignee`() =
+  fun `update with null assigneeId unassigns the task`() =
     runTest {
       val task = task(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue("""{"title": "${task.title}", "status": "DONE", "assigneeId": null}""")
@@ -79,8 +81,25 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
         .isNoContent
 
       val stored = taskRepository.findByIdentifier(task.identifier)
-      assertEquals("user-1", stored?.assigneeId)
+      assertNull(stored?.assigneeId)
       assertEquals(TaskStatus.DONE, stored?.status)
+    }
+
+  @Test
+  fun `update without assigneeId unassigns the task`() =
+    runTest {
+      val task = task(1)
+
+      clientFor(user("user-1"))
+        .put()
+        .uri("/api/v1/tasks/{taskId}", task.identifier)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("title" to task.title, "status" to task.status.name))
+        .exchange()
+        .expectStatus()
+        .isNoContent
+
+      assertNull(taskRepository.findByIdentifier(task.identifier)?.assigneeId)
     }
 
   @Test
@@ -89,7 +108,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
       val task = task(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
@@ -111,7 +130,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
       val task = task(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("title" to "Renamed task"))
@@ -128,7 +147,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
       val task = task(1)
 
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("title" to task.title, "status" to "LATER"))
@@ -141,7 +160,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
   fun `update unknown task returns 404`() =
     runTest {
       clientFor(user("user-1"))
-        .patch()
+        .put()
         .uri("/api/v1/tasks/{taskId}", "does-not-exist")
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(mapOf("title" to "Renamed task", "status" to "TODO"))
