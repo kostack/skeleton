@@ -22,7 +22,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration::class)
 @ResourceLock("controller-integration-database")
-abstract class BaseControllerIntegrationTest {
+abstract class BaseIntegrationTest {
   @LocalServerPort
   private var port: Int = 0
 

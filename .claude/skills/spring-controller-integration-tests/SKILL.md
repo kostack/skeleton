@@ -1,13 +1,30 @@
 ---
 name: spring-controller-integration-tests
-description: Write focused integration tests for Spring Boot WebFlux controller endpoints. Use when adding or updating controller integration tests covering standard success flows and important error scenarios, while reporting API defects without modifying production code.
+description: Write focused integration tests for Spring Boot WebFlux endpoints (operation classes or controllers). Use when adding or updating endpoint integration tests covering standard success flows, business rules, and important error scenarios, while reporting API defects without modifying production code.
 ---
 
-# Controller integration tests
+# Endpoint integration tests
+
+## In this repository
+
+- Endpoints are operation classes: one class per endpoint in `controller/<resource>/operation/`, with
+  a single `suspend operator fun invoke` handler. There is no service layer.
+- Write one test class per operation:
+  `src/test/kotlin/io/kostack/skeleton/integration/controller/<resource>/operation/<Operation>IntegrationTest.kt`
+  (for example `CreateTodoIntegrationTest` for `CreateTodo`). See
+  `integration/controller/todo/operation/` for the reference.
+- Extend `BaseIntegrationTest`. Authenticate with `clientFor(user("user-1"))`, read fixture data with
+  `references.getReference<Todo>("todo_1")`, run parallel requests with `concurrently(n) { }`, and
+  check persisted state with `@Autowired` repositories.
+- Document the fixture data the class relies on in its KDoc.
+- Operations and resolvers have no unit tests, so these tests also cover their behavior: business
+  rules (validation, duplicate handling, idempotent transitions, concurrency where it matters) and
+  path-entity resolution (unknown and other users' entities return 404).
+- User-owned resources resolve only for their owner: another user's entity returns 404, not 403.
 
 ## Workflow
 
-1. Inspect the target controller, related business rules, security
+1. Inspect the target operation or controller, related business rules, security
    configuration, exception handlers, and nearby integration tests.
 2. Identify the standard successful flow and important error scenarios.
 3. Implement the smallest useful set of tests using existing conventions.
@@ -21,12 +38,12 @@ description: Write focused integration tests for Spring Boot WebFlux controller 
   unauthenticated access, insufficient permissions, and business conflicts.
 - Use one representative test per distinct relevant error.
 - Avoid exhaustive field validation, input combinations, and edge cases.
-- Stay within the requested controllers or actions.
+- Stay within the requested operations or actions.
 
 ## Test implementation
 
 - Exercise endpoints through WebTestClient.
-- Use real internal service and persistence layers.
+- Use the real persistence layer (repositories and database).
 - Follow the existing integration-test setup and authentication helpers.
 - Mock external systems only when necessary.
 - Create only the data and authentication needed for each scenario.

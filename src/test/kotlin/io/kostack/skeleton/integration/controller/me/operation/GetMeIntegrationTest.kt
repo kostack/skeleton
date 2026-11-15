@@ -1,14 +1,14 @@
-package io.kostack.skeleton.integration.controller
+package io.kostack.skeleton.integration.controller.me.operation
 
 import io.kostack.skeleton.db.mongodb.model.User
-import io.kostack.skeleton.integration.BaseControllerIntegrationTest
+import io.kostack.skeleton.integration.BaseIntegrationTest
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 
-class UserControllerTest : BaseControllerIntegrationTest() {
+class GetMeIntegrationTest : BaseIntegrationTest() {
   @Test
   fun `me returns the current user`() =
     runTest {

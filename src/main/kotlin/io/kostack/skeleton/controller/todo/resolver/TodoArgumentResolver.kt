@@ -5,7 +5,7 @@ import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
-import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
 import org.springframework.core.MethodParameter
 import org.springframework.http.HttpStatus
@@ -33,8 +33,10 @@ class TodoArgumentResolver(
   ): Mono<Any> =
     mono {
       val identifier = getPathParameter<String>("todoId", exchange)
-      val authentication = exchange.getPrincipal<Authentication>().awaitSingle()
-      val user = authentication.principal as User
+      // Security rejects anonymous /api requests first; this keeps a missing user a 401, not a 500
+      val user =
+        exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User
+          ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED)
       return@mono todoRepository.findByIdentifierAndCreatedBy(identifier, user.identity)
         ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     }

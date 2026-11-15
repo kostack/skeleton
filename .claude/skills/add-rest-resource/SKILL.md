@@ -13,8 +13,7 @@ and naming exactly:
 - `src/main/kotlin/io/kostack/skeleton/db/r2dbc/` (or `db/mongodb/` for documents)
 - `src/main/kotlin/io/kostack/skeleton/fixture/r2dbc/TodoFixture.kt`
 - `src/main/resources/db/migration/` (latest migration)
-- `src/test/kotlin/io/kostack/skeleton/controller/todo/operation/` (unit tests)
-- `src/test/kotlin/io/kostack/skeleton/integration/controller/TodoControllerTest.kt`
+- `src/test/kotlin/io/kostack/skeleton/integration/controller/todo/operation/` (integration tests)
 
 Follow the conventions in `CLAUDE.md`. Below, `Xxx` is the singular PascalCase name, `xxx` the
 camelCase name, and `xxxs` the plural used in URLs and table names.
@@ -80,8 +79,9 @@ Add each of these only when a requested action uses it.
 - `resolver/XxxArgumentResolver.kt`: reads the `xxxId` path parameter, loads through the repository
   and throws `ResponseStatusException(HttpStatus.NOT_FOUND)` when the entity is missing. For
   user-owned resources, load by identifier and owner, taking the user from
-  `exchange.getPrincipal<Authentication>().awaitSingle().principal as User` (never
-  `authentication.name`). See `TodoArgumentResolver`.
+  `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User` and throwing
+  `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing (never `authentication.name`).
+  See `TodoArgumentResolver`.
 - `authorization/XxxAuthorization.kt` (only for access rules beyond ownership, such as roles or
   states): `@Component("xxxAuth")` with `fun <rule>(xxx: Xxx, principal: User): Mono<Boolean> = mono { ... }`.
 
@@ -114,23 +114,23 @@ Logic inside the handler:
 - List uses `GridQueryBuilder` + `table<Xxx>("x")` and `pageable.toPageRequest(XxxListFilter::class)`
   (see `ListTodo`). Scope it to the owner (`createdBy`) only for user-owned resources.
 
-## 5. Fixtures and manual calls
+## 5. Fixtures
 
 - `fixture/r2dbc/XxxFixture.kt`: extends `AbstractFixture`, injects the repository, gets an `@Order`
   after the fixtures it references, and stores references as `xxx_<n>`. For user-owned resources,
   cover data for at least two users, so tests can check ownership.
-- `http/xxx.http`: one request per endpoint, using `{{baseUrl}}` and `{{authToken}}` (see `http/user.http`).
 
 ## 6. Tests
 
-- Unit tests in `controller/xxx/operation/` for operations with business logic (validation, duplicate
-  handling, idempotent transitions), plus `XxxAuthorization` if it exists: follow the
-  `spring-unit-tests` skill. Instantiate the operation with mocked repositories and call it like a
-  function (`createXxx(command, user)`). Trivial pass-through operations are covered by integration
-  tests only.
-- `integration/controller/XxxControllerTest.kt`: follow the `spring-controller-integration-tests`
-  skill. Document the fixture data in the class KDoc. For user-owned resources, test that another
+- Operations are tested through HTTP only: one
+  `integration/controller/xxx/operation/<Verb>XxxIntegrationTest.kt` per operation, extending
+  `BaseIntegrationTest`. Follow the `spring-controller-integration-tests` skill. Document the fixture
+  data in the class KDoc. Cover the operation's business rules there (validation, duplicates,
+  idempotent transitions, concurrency where it matters). For user-owned resources, test that another
   user's entity returns 404.
+- Unit tests only for `XxxAuthorization`, if it exists: follow the `spring-unit-tests` skill. Don't
+  write unit tests for operations, resolvers or other classes in `controller/xxx/`; the integration
+  tests cover them (the resolver through its 404 cases).
 
 ## 7. Verify
 
@@ -150,4 +150,4 @@ Logic inside the handler:
 - [ ] A new migration exists, and no existing migration was edited
 - [ ] No `service/` classes; no blocking calls (`.block()`, JDBC, `Thread.sleep`)
 - [ ] Only the requested actions exist, with no extra operations, repository methods or DTOs
-- [ ] Fixture, `.http` file, unit tests, and integration tests are added
+- [ ] Fixture and one integration test class per operation are added (unit tests only for authorization rules)

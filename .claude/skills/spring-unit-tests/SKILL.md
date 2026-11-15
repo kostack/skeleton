@@ -5,6 +5,17 @@ description: Write focused unit tests for Kotlin and Java Spring Boot applicatio
 
 # Unit tests
 
+## In this repository
+
+- In `controller/`, only authorization classes (`controller/<resource>/authorization/`) get unit
+  tests. Operations, resolvers, commands, filters and responses are covered by integration tests;
+  use the `spring-controller-integration-tests` skill for them. If asked to unit test one of those,
+  say so and ask before writing it.
+- Outside `controller/`, unit test classes with their own logic, such as `security/` classes.
+- Test classes mirror the main package: `src/test/kotlin/io/kostack/skeleton/<same package>/<Class>Test.kt`.
+- Tools: JUnit 5, MockK (`mockk`, `coEvery`, `coVerify`), `runTest`, and `StepVerifier` or
+  `kotlinx.coroutines.reactor` helpers for `Mono` results.
+
 ## Workflow
 
 1. Inspect the target class, its dependencies, business rules, and nearby tests.
@@ -38,15 +49,15 @@ description: Write focused unit tests for Kotlin and Java Spring Boot applicatio
 
 ## Dependencies and test boundaries
 
-- Prefer real objects and lightweight real collaborating services when
+- Prefer real objects and lightweight real collaborators when
   they are deterministic and easy to construct.
 - Mock only when necessary to isolate external I/O, control a failure
   scenario, or avoid expensive or complex infrastructure setup.
 - If mocking many dependencies makes the test harder to understand,
-  use real collaborating services and mock at the external boundaries.
+  use real collaborators and mock at the external boundaries.
 - Do not recursively build a large dependency graph merely to avoid mocks.
 - Keep databases, network clients, brokers, and other external systems mocked.
-- Instantiate services directly without starting a Spring context.
+- Instantiate classes directly without starting a Spring context.
 - Allow a small group of collaborating classes to form the unit under test.
   Assert their observable behavior rather than internal interactions.
 - Follow existing mocking conventions and stub only what the scenario needs.

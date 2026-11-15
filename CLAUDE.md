@@ -27,7 +27,6 @@ db/r2dbc/{model,repository}     MySQL entities (@Table) and CoroutineCrudReposit
 db/mongodb/{model,repository}   Mongo documents (@Document) and CoroutineCrudRepository
 fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
 resources/db/migration          Flyway: V<n>__<description>.sql
-http/                           IntelliJ HTTP client files for manual calls
 ```
 
 Reference implementation for everything: the `todo` resource. When in doubt, copy its shape.
@@ -53,7 +52,7 @@ logic, ask before introducing a shared component.
 - Each resource has a composed annotation `controller/<resource>/operation/<Resource>Operation.kt`
   carrying `@RestController`, `@RequestMapping("/api/{version}/<plural>")` and `@Tag`. Every
   operation class in that package is annotated with it and has exactly one handler:
-  `suspend operator fun invoke(...)` with the mapping annotation. Exception: `UserOperation` maps
+  `suspend operator fun invoke(...)` with the mapping annotation. Exception: `MeOperation` maps
   `/api/{version}`, so the current-user endpoint stays at `/api/{version}/me`.
 - Every mapping declares `version = "1+"` (or a range when a version changes behavior).
 - The conventions still accept classic `<Resource>Controller` classes with `suspend fun <verb>Action`
@@ -71,8 +70,9 @@ logic, ask before introducing a shared component.
 - Ownership: for user-owned resources the resolver loads by identifier and owner
   (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
   their existence isn't revealed. In the resolver, get the user with
-  `exchange.getPrincipal<Authentication>().awaitSingle().principal as User`. Never use
-  `authentication.name`; it isn't the identity.
+  `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User`, and throw
+  `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing (see `TodoArgumentResolver`).
+  Never use `authentication.name`; it isn't the identity.
 - Further access rules (roles, states) go on the handler as
   `@PreAuthorize("@<resource>Auth.<rule>(#entity, authentication.principal)")`.
 - Get the current user in a handler with `@AuthenticationPrincipal user: User` (the Mongo `User`).
@@ -101,12 +101,14 @@ logic, ask before introducing a shared component.
 
 ## Tests
 
+- Operations are tested through HTTP only, with one integration test class per operation:
+  `integration/controller/<resource>/operation/<Operation>IntegrationTest.kt` (for example
+  `CreateTodoIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
+  `references`, `concurrently { }`) and cover the operation's business rules too. Use the
+  `spring-controller-integration-tests` skill.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
-  Operations with business logic (validation, duplicate handling, idempotent transitions) get unit
-  tests that call `invoke` directly with mocked repositories (see `CreateTodoTest`).
-- Controller integration tests live in `integration/controller/` and extend
-  `BaseControllerIntegrationTest` (`clientFor(user(...))`, `references`, `concurrently { }`).
-  Use the `spring-controller-integration-tests` skill.
+  In `controller/`, only authorization classes get unit tests; operations and resolvers are covered by
+  the integration tests. Outside `controller/`, unit test classes with their own logic (`security/`).
 - Test names are backtick sentences: `` `list returns only the current user's todos` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc.
