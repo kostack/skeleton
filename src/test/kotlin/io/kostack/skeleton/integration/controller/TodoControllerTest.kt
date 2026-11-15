@@ -7,7 +7,11 @@ import io.kostack.skeleton.controller.todo.response.TodoResponse
 import io.kostack.skeleton.db.mongodb.model.Todo
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import io.kostack.skeleton.service.todo.TodoService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
@@ -190,6 +194,29 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .is4xxClientError
     }
 
+  @Test
+  fun `concurrent creates with the same title produce one todo and title violations for the rest`() =
+    runTest {
+      val client = clientFor(user("user-1"))
+
+      val statuses =
+        concurrently {
+          client
+            .post()
+            .uri("/api/v1/todos")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(mapOf("title" to "Concurrent todo"))
+            .exchange()
+            .returnResult(ApiValidation::class.java)
+            .let { it.status to it.responseBody.blockFirst() }
+        }
+
+      assertEquals(1, statuses.count { it.first == HttpStatus.CREATED })
+      val rejected = statuses.filter { it.first != HttpStatus.CREATED }
+      assertEquals(List(CONCURRENT_REQUESTS - 1) { HttpStatus.BAD_REQUEST }, rejected.map { it.first })
+      rejected.forEach { (_, body) -> assertEquals(listOf("title"), body?.violations?.map { it.fieldId }) }
+    }
+
   // complete
 
   @Test
@@ -236,7 +263,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
     }
 
   @Test
-  fun `complete already completed todo returns 409`() =
+  fun `complete already completed todo returns 204 and leaves it unchanged`() =
     runTest {
       val todo = todo(3)
 
@@ -245,9 +272,11 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .uri("/api/v1/todos/{todoId}/complete", todo.id)
         .exchange()
         .expectStatus()
-        .isEqualTo(HttpStatus.CONFLICT)
+        .isNoContent
 
-      assertEquals(true, todoService.findById(todo.id)?.completed)
+      val stored = todoService.findById(todo.id)
+      assertEquals(true, stored?.completed)
+      assertEquals(todo.version, stored?.version)
     }
 
   @Test
@@ -263,6 +292,28 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .isUnauthorized
 
       assertFalse(todoService.findById(todo.id)!!.completed)
+    }
+
+  @Test
+  fun `concurrent completes all succeed and complete the todo once`() =
+    runTest {
+      val todo = todo(1)
+      val client = clientFor(user("user-1"))
+
+      val statuses =
+        concurrently {
+          client
+            .patch()
+            .uri("/api/v1/todos/{todoId}/complete", todo.id)
+            .exchange()
+            .returnResult(Void::class.java)
+            .status
+        }
+
+      assertEquals(List(CONCURRENT_REQUESTS) { HttpStatus.NO_CONTENT }, statuses)
+      val stored = todoService.findById(todo.id)
+      assertEquals(true, stored?.completed)
+      assertEquals(todo.version!! + 1, stored?.version)
     }
 
   // delete
@@ -309,4 +360,14 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       assertNotNull(todoService.findById(todo.id))
     }
+
+  /** Sends the same request [CONCURRENT_REQUESTS] times in parallel and returns the results. */
+  private suspend fun <T> concurrently(request: () -> T): List<T> =
+    withContext(Dispatchers.IO) {
+      List(CONCURRENT_REQUESTS) { async { request() } }.awaitAll()
+    }
+
+  companion object {
+    private const val CONCURRENT_REQUESTS = 8
+  }
 }

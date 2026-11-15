@@ -12,7 +12,6 @@ import io.kostack.skeleton.db.r2dbc.model.User
 import io.kostack.skeleton.service.todo.TodoService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
@@ -77,9 +76,7 @@ class TodoController(
   @Operation(
     operationId = "todo_complete_action",
     summary = "Mark a todo as completed",
-    responses = [
-      ApiResponse(responseCode = "409", description = "Todo is already completed")
-    ]
+    description = "Idempotent: completing an already completed todo also returns 204."
   )
   @PatchMapping("/{todoId}/complete", version = "1+")
   @ResponseStatus(HttpStatus.NO_CONTENT)

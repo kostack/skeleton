@@ -14,12 +14,12 @@ import io.kostack.skeleton.controller.todo.response.toListResponse
 import io.kostack.skeleton.db.mongodb.model.Todo
 import io.kostack.skeleton.db.mongodb.repository.TodoRepository
 import io.kostack.skeleton.db.r2dbc.model.User
+import org.springframework.dao.DuplicateKeyException
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
@@ -37,23 +37,27 @@ class TodoServiceImpl(
     todoRequest: TodoCreateRequest,
     user: User
   ): Todo {
-    if (findByTitle(todoRequest.title) != null) {
+    val todo = Todo(id = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
+    return try {
+      save(todo)
+    } catch (_: DuplicateKeyException) {
       throw ValidationException(
         listOf(
           ApiValidation.Violation(fieldId = "title", message = "Title already exists")
         )
       )
     }
-
-    val todo = Todo(id = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
-    return save(todo)
   }
 
   override suspend fun complete(todo: Todo) {
     if (todo.completed) {
-      throw ResponseStatusException(HttpStatus.CONFLICT, "Todo is already completed")
+      return
     }
-    save(todo.copy(completed = true))
+    try {
+      save(todo.copy(completed = true))
+    } catch (_: OptimisticLockingFailureException) {
+      // A concurrent request completed the todo first
+    }
   }
 
   override suspend fun delete(todo: Todo) = todoRepository.delete(todo)
@@ -73,8 +77,6 @@ class TodoServiceImpl(
 
     return paginator
       .toPagination(query, pageRequest, Todo::class)
-      .map { todo ->
-        todo.toListResponse()
-      }
+      .map { todo -> todo.toListResponse() }
   }
 }

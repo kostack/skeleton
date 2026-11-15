@@ -1,4 +1,3 @@
-CREATE DATABASE IF NOT EXISTS `skeleton`;
 CREATE TABLE users
 (
     id       BIGINT       NOT NULL AUTO_INCREMENT,
