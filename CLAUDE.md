@@ -56,8 +56,9 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 - Authorization goes on the method:
   `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`.
 - Get the current user with `@AuthenticationPrincipal user: User` (the Mongo `User`).
-- Never return entities. Map them with `fun Entity.toResponse()` extensions in
-  `response/ResponseExtensions.kt`.
+- Response DTOs are optional. Returning an entity directly is fine (see `MeController` returning
+  `User`); hide internal fields with `@JsonIgnore`. If the API shape should differ from the entity,
+  add DTOs and map them with `fun Entity.toResponse()` extensions in `response/ResponseExtensions.kt`.
 - Validate request DTOs with `@Valid` and `@field:` constraints. Report business validation errors
   as `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,

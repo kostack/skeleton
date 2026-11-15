@@ -60,8 +60,10 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 ## 4. Controller package `controller/xxx/`
 
 - `request/XxxCreateRequest.kt` (and `XxxUpdateRequest` if needed): constraints use `@field:`.
-- `response/XxxResponse.kt`, `response/XxxListResponse.kt` (lean list projection), and
-  `response/ResponseExtensions.kt` with `fun Xxx.toResponse()`. Expose `identifier`, never `id`.
+- Responses (optional): returning the entity directly is fine. Hide internal fields such as `id` and
+  `version` with `@JsonIgnore`. If the API shape should differ from the entity, add
+  `response/XxxResponse.kt` and `response/ResponseExtensions.kt` with `fun Xxx.toResponse()`.
+  For a list endpoint that uses `GridQueryBuilder`, add a lean `response/XxxListResponse.kt` projection.
 - `filter/XxxListFilter.kt`: `@SortableDefaults`, one `@Sortable` per sortable field, and
   `@QueryField` plus `@field:Schema(required = false)` on optional filter fields.
 - `resolver/XxxArgumentResolver.kt`: reads the `xxxId` path parameter and throws
@@ -100,7 +102,7 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 
 ## Checklist
 
-- [ ] No entity is returned from a controller; there is a `toResponse()` for each response DTO
+- [ ] Entities returned directly don't expose internal fields; any response DTOs have a `toResponse()`
 - [ ] Every mapping has `version = "1+"` and an `operationId` of the form `xxx_<verb>_action`
 - [ ] Every path endpoint has `@ResolvedArgument` + `@PreAuthorize`
 - [ ] Uniqueness is enforced by the database and mapped to `ValidationException`
