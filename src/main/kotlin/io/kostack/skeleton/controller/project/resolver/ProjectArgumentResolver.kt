@@ -3,7 +3,7 @@ package io.kostack.skeleton.controller.project.resolver
 import io.github.kostack.spring_tools.controller.resolver.MethodArgumentResolver
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
 import io.kostack.skeleton.db.r2dbc.model.Project
-import io.kostack.skeleton.service.project.ProjectService
+import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import kotlinx.coroutines.reactor.mono
 import org.springframework.core.MethodParameter
 import org.springframework.http.HttpStatus
@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono
 
 @Component
 class ProjectArgumentResolver(
-  private val projectService: ProjectService
+  private val projectRepository: ProjectRepository
 ) : HandlerMethodArgumentResolver,
   MethodArgumentResolver {
   override fun supportsParameter(parameter: MethodParameter): Boolean =
@@ -30,6 +30,6 @@ class ProjectArgumentResolver(
   ): Mono<Any> =
     mono {
       val identifier = getPathParameter<String>("projectId", exchange)
-      return@mono projectService.findByIdentifier(identifier) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+      return@mono projectRepository.findByIdentifier(identifier) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     }
 }

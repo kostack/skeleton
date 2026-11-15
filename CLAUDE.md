@@ -15,13 +15,14 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 ## Layout
 
 ```
-controller/<resource>/          <Resource>Controller.kt
-  request/                      <Resource>CreateRequest, ... (input DTOs with jakarta validation)
+controller/<resource>/
+  operation/                    <Resource>Operation (composed annotation) + one class per endpoint:
+                                List<Resource>, Get<Resource>, Create<Resource>, Complete<Resource>, ...
+  command/                      <Resource>CreateCommand, ... (request bodies with jakarta validation)
   response/                     <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
   filter/                       <Resource>ListFilter (query/sort definition for list endpoints)
   resolver/                     <Resource>ArgumentResolver (loads path entities)
   authorization/                <Resource>Authorization (@Component("<resource>Auth"))
-service/<resource>/             <Resource>Service (interface) + <Resource>ServiceImpl (@Service)
 db/r2dbc/{model,repository}     MySQL entities (@Table) and CoroutineCrudRepository
 db/mongodb/{model,repository}   Mongo documents (@Document) and CoroutineCrudRepository
 fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
@@ -30,6 +31,12 @@ http/                           IntelliJ HTTP client files for manual calls
 ```
 
 Reference implementation for everything: the `todo` resource. When in doubt, copy its shape.
+`project` is the reference for a shared (not user-owned) resource.
+
+There is no service layer. Each operation class is the use case: it handles one endpoint and reads and
+writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and fixtures use
+repositories too. Don't add `service/` classes back. If several operations need the same non-trivial
+logic, ask before introducing a shared component.
 
 ## Kotlin style
 
@@ -43,30 +50,41 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 
 ## API conventions
 
-- Base path `@RequestMapping("/api/{version}/<plural>")`. Every mapping declares `version = "1+"`
-  (or a range when a version changes behavior).
-- Handlers are `suspend fun <verb>Action(...)`, for example `listAction` or `createAction`.
-- Add only the actions that were requested by name. "Create the X controller" means the class with
-  no actions. Never add CRUD actions (or their DTOs, resolvers and tests) that nobody asked for.
+- Each resource has a composed annotation `controller/<resource>/operation/<Resource>Operation.kt`
+  carrying `@RestController`, `@RequestMapping("/api/{version}/<plural>")` and `@Tag`. Every
+  operation class in that package is annotated with it and has exactly one handler:
+  `suspend operator fun invoke(...)` with the mapping annotation. Exception: `UserOperation` maps
+  `/api/{version}`, so the current-user endpoint stays at `/api/{version}/me`.
+- Every mapping declares `version = "1+"` (or a range when a version changes behavior).
+- The conventions still accept classic `<Resource>Controller` classes with `suspend fun <verb>Action`
+  handlers, but don't write new ones: every resource uses operation classes.
+- Add only the actions that were requested by name, as operation classes. "Create the X resource" with
+  no actions means only the `<Resource>Operation` annotation. Never add CRUD operations (or their DTOs,
+  resolvers and tests) that nobody asked for.
 - Every endpoint has `@Operation(operationId = "<resource>_<verb>_action", summary = "...")`.
-  The class has `@Tag`.
 - Declare `produces`/`consumes = [MediaType.APPLICATION_JSON_VALUE]` explicitly.
 - Status codes: create → `@ResponseStatus(HttpStatus.CREATED)`; update or delete without a body →
   `@ResponseStatus(HttpStatus.NO_CONTENT)`.
 - Path entities: take `@PathVariable <resource>Id: String` plus
   `@Parameter(hidden = true) @ResolvedArgument entity: Entity`. The resolver returns 404 through
-  `ResponseStatusException(HttpStatus.NOT_FOUND)`. Controllers never load entities themselves.
-- Authorization is per endpoint, as needed. When access is restricted (for example owner-only), put it
-  on the method: `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`.
-- Get the current user with `@AuthenticationPrincipal user: User` (the Mongo `User`).
-- Response DTOs are optional. Returning an entity directly is fine (see `MeController` returning
+  `ResponseStatusException(HttpStatus.NOT_FOUND)`. Operations never load their path entity themselves.
+- Ownership: for user-owned resources the resolver loads by identifier and owner
+  (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
+  their existence isn't revealed. In the resolver, get the user with
+  `exchange.getPrincipal<Authentication>().awaitSingle().principal as User`. Never use
+  `authentication.name`; it isn't the identity.
+- Further access rules (roles, states) go on the handler as
+  `@PreAuthorize("@<resource>Auth.<rule>(#entity, authentication.principal)")`.
+- Get the current user in a handler with `@AuthenticationPrincipal user: User` (the Mongo `User`).
+- Response DTOs are optional. Returning an entity directly is fine (see `GetMe` returning
   `User`); hide internal fields with `@JsonIgnore`. If the API shape should differ from the entity,
   add DTOs and map them with `fun Entity.toResponse()` extensions in `response/ResponseExtensions.kt`.
-- Validate request DTOs with `@Valid` and `@field:` constraints. Report business validation errors
-  as `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
+- Request bodies are commands (`command/<Resource>CreateCommand`), validated with `@Valid` and
+  `@field:` constraints. Report business validation errors as
+  `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
-  and return `Pagination<<Resource>ListResponse>`, built in the service with `GridQueryBuilder`
-  (see `TodoServiceImpl.list`).
+  and return `Pagination<<Resource>ListResponse>`, built in the operation with `GridQueryBuilder`
+  (see `ListTodo`).
 
 ## Persistence
 
@@ -84,6 +102,8 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 ## Tests
 
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
+  Operations with business logic (validation, duplicate handling, idempotent transitions) get unit
+  tests that call `invoke` directly with mocked repositories (see `CreateTodoTest`).
 - Controller integration tests live in `integration/controller/` and extend
   `BaseControllerIntegrationTest` (`clientFor(user(...))`, `references`, `concurrently { }`).
   Use the `spring-controller-integration-tests` skill.
@@ -94,10 +114,12 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 ## Enforcement
 
 - `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` from the kostack
-  `service-conventions` library (Konsist, runs in `./gradlew test`) and enforces: controller
-  naming and package, `suspend fun *Action` handlers, `version` on every mapping, the operationId
-  pattern, no repositories in controllers, `XService`/`XServiceImpl` structure, coroutine
-  repositories, no blocking or JDBC/JPA outside `configuration/`, and migration file names.
+  `service-conventions` library (Konsist, runs in `./gradlew test`) and enforces: controllers
+  (including classes with a composed `@RestController` annotation) live in `controller/`; operation
+  classes in `controller..operation` have a `suspend operator fun invoke` handler, other controllers
+  are `*Controller` with `suspend fun *Action`; `version` on every mapping; the operationId pattern;
+  no repositories in classic controllers (operations may use them); coroutine repositories; no
+  blocking or JDBC/JPA outside `configuration/`; and migration file names.
   If it fails, fix the code. Rules are changed in the library, for every service at once; the
   per-service options are `legacyOperationIds` and overriding a rule without `@Test`.
 - Hooks in `.claude/settings.json`: committed migrations can't be edited, and Spotless runs

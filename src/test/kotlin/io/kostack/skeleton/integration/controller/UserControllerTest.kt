@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 
-class MeControllerTest : BaseControllerIntegrationTest() {
+class UserControllerTest : BaseControllerIntegrationTest() {
   @Test
-  fun `authenticated request returns current user`() =
+  fun `me returns the current user`() =
     runTest {
       clientFor(user("user-1"))
         .get()

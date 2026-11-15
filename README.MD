@@ -397,11 +397,10 @@ src/main/kotlin/io/kostack/skeleton/
 ├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
 ├── command/            Spring Shell commands
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
-├── controller/         WebFlux REST controllers and DTOs
+├── controller/         REST operations (one class per endpoint), commands and DTOs
 ├── db/                 MongoDB (users) and R2DBC/MySQL (todos) models and repositories
 ├── fixture/            Development and test data fixtures
-├── security/           Authorization rules and audit support
-└── service/            Application services
+└── security/           Authorization rules and audit support
 
 src/main/resources/
 ├── db/migration/       Flyway SQL migrations

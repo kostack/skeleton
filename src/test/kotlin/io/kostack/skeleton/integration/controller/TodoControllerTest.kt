@@ -6,8 +6,8 @@ import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.controller.todo.response.TodoResponse
 import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Todo
+import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
-import io.kostack.skeleton.service.todo.TodoService
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  */
 class TodoControllerTest : BaseControllerIntegrationTest() {
   @Autowired
-  private lateinit var todoService: TodoService
+  private lateinit var todoRepository: TodoRepository
 
   private fun todo(reference: Int): Todo = references.getReference<Todo>("todo_$reference")
 
@@ -161,7 +161,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       assertNotNull(created)
       assertEquals("Write integration tests", created.title)
       assertEquals(false, created.completed)
-      val saved = todoService.findByIdentifier(created.identifier)
+      val saved = todoRepository.findByIdentifier(created.identifier)
       assertEquals(user("user-1").identity, saved?.createdBy)
       assertEquals(project(1).id, saved?.projectId)
     }
@@ -255,7 +255,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectBody()
         .isEmpty
 
-      val stored = todoService.findByIdentifier(todo.identifier)
+      val stored = todoRepository.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.createdAt, stored?.createdAt)
       assertTrue(stored!!.lastModifiedAt > todo.lastModifiedAt, "lastModifiedAt was not updated")
@@ -284,7 +284,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectStatus()
         .isNotFound
 
-      assertFalse(todoService.findByIdentifier(todo.identifier)!!.completed)
+      assertFalse(todoRepository.findByIdentifier(todo.identifier)!!.completed)
     }
 
   @Test
@@ -299,7 +299,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectStatus()
         .isNoContent
 
-      val stored = todoService.findByIdentifier(todo.identifier)
+      val stored = todoRepository.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.version, stored?.version)
       assertEquals(todo.lastModifiedAt, stored?.lastModifiedAt)
@@ -317,7 +317,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectStatus()
         .isUnauthorized
 
-      assertFalse(todoService.findByIdentifier(todo.identifier)!!.completed)
+      assertFalse(todoRepository.findByIdentifier(todo.identifier)!!.completed)
     }
 
   @Test
@@ -337,7 +337,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         }
 
       assertEquals(List(CONCURRENT_REQUESTS) { HttpStatus.NO_CONTENT }, statuses)
-      val stored = todoService.findByIdentifier(todo.identifier)
+      val stored = todoRepository.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.version!! + 1, stored?.version)
     }
@@ -358,7 +358,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectBody()
         .isEmpty
 
-      assertNull(todoService.findByIdentifier(todo.identifier))
+      assertNull(todoRepository.findByIdentifier(todo.identifier))
     }
 
   @Test
@@ -384,7 +384,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .expectStatus()
         .isNotFound
 
-      assertNotNull(todoService.findByIdentifier(todo.identifier))
+      assertNotNull(todoRepository.findByIdentifier(todo.identifier))
     }
 
   companion object {

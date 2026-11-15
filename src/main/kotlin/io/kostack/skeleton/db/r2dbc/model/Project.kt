@@ -6,11 +6,12 @@ import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.annotation.Version
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
+import java.util.UUID
 
 @Table("projects")
 data class Project(
   @Id val id: Long? = null,
-  val identifier: String,
+  val identifier: String = UUID.randomUUID().toString(),
   val name: String,
   @CreatedDate val createdAt: Instant = Instant.now(),
   @LastModifiedDate val lastModifiedAt: Instant = Instant.now(),
