@@ -4,7 +4,7 @@ import io.github.kostack.fixtures.DataFixtureManager
 import io.github.kostack.fixtures.ReferenceRepository
 import io.github.kostack.jwt_security.autoconfigure.SecurityProperties
 import io.github.kostack.jwt_security.encoder.JwtEncoder
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.service.user.UserService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach

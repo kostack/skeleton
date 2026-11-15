@@ -1,4 +1,4 @@
-package io.kostack.skeleton.controller.todo.query
+package io.kostack.skeleton.controller.todo.filter
 
 import io.github.kostack.database_tools.query_mapper.QueryOperator
 import io.github.kostack.database_tools.query_mapper.annotation.QueryField
@@ -16,18 +16,12 @@ import org.springframework.data.domain.Sort
 @Sortable(name = "title")
 @Sortable(name = "completed")
 @Sortable(name = "lastModifiedAt")
-data class TodoListQuery(
+data class TodoListFilter(
   @field:Schema(required = false)
   @field:Size(min = 2, max = 100)
-  @field:QueryField(
-    name = "title",
-    operator = QueryOperator.CONTAINS_IGNORE_CASE
-  )
+  @field:QueryField(operator = QueryOperator.CONTAINS_IGNORE_CASE)
   val title: String? = null,
   @field:Schema(required = false)
-  @field:QueryField(
-    name = "completed",
-    operator = QueryOperator.EQ
-  )
+  @field:QueryField(operator = QueryOperator.EQ)
   val completed: Boolean? = null
 )

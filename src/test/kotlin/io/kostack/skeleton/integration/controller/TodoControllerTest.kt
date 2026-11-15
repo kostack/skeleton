@@ -4,7 +4,7 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.dto.ApiValidation
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.controller.todo.response.TodoResponse
-import io.kostack.skeleton.db.mongodb.model.Todo
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import io.kostack.skeleton.service.todo.TodoService
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
+import org.springframework.test.web.reactive.server.returnResult
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -49,8 +50,8 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .value { response ->
           assertEquals(3, response?.total)
           assertEquals(
-            setOf(todo(1).id, todo(2).id, todo(3).id),
-            response?.content?.map { it.id }?.toSet()
+            setOf(todo(1).identifier, todo(2).identifier, todo(3).identifier),
+            response?.content?.map { it.identifier }?.toSet()
           )
         }
     }
@@ -67,7 +68,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .isOk
         .expectBody<Pagination<TodoListResponse>>()
         .value { response ->
-          assertEquals(listOf(todo(3).id), response?.content?.map { it.id })
+          assertEquals(listOf(todo(3).identifier), response?.content?.map { it.identifier })
         }
     }
 
@@ -102,14 +103,14 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .get()
-        .uri("/api/v1/todos/{todoId}", todo.id)
+        .uri("/api/v1/todos/{todoId}", todo.identifier)
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk
         .expectBody<TodoResponse>()
         .value { response ->
-          assertEquals(todo.id, response?.id)
+          assertEquals(todo.identifier, response?.identifier)
         }
     }
 
@@ -130,7 +131,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
     runTest {
       clientFor(user("user-1"))
         .get()
-        .uri("/api/v1/todos/{todoId}", todo(4).id)
+        .uri("/api/v1/todos/{todoId}", todo(4).identifier)
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
@@ -159,7 +160,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       assertNotNull(created)
       assertEquals("Write integration tests", created.title)
       assertEquals(false, created.completed)
-      assertEquals(user("user-1").identity, todoService.findById(created.id)?.createdBy)
+      assertEquals(user("user-1").identity, todoService.findByIdentifier(created.identifier)?.createdBy)
     }
 
   @Test
@@ -207,7 +208,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(mapOf("title" to "Concurrent todo"))
             .exchange()
-            .returnResult(ApiValidation::class.java)
+            .returnResult<ApiValidation>()
             .let { it.status to it.responseBody.blockFirst() }
         }
 
@@ -226,14 +227,14 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .patch()
-        .uri("/api/v1/todos/{todoId}/complete", todo.id)
+        .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
         .exchange()
         .expectStatus()
         .isNoContent
         .expectBody()
         .isEmpty
 
-      assertEquals(true, todoService.findById(todo.id)?.completed)
+      assertEquals(true, todoService.findByIdentifier(todo.identifier)?.completed)
     }
 
   @Test
@@ -254,12 +255,12 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .patch()
-        .uri("/api/v1/todos/{todoId}/complete", todo.id)
+        .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
         .exchange()
         .expectStatus()
         .isForbidden
 
-      assertFalse(todoService.findById(todo.id)!!.completed)
+      assertFalse(todoService.findByIdentifier(todo.identifier)!!.completed)
     }
 
   @Test
@@ -269,12 +270,12 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .patch()
-        .uri("/api/v1/todos/{todoId}/complete", todo.id)
+        .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
         .exchange()
         .expectStatus()
         .isNoContent
 
-      val stored = todoService.findById(todo.id)
+      val stored = todoService.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.version, stored?.version)
     }
@@ -286,12 +287,12 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       webTestClient
         .patch()
-        .uri("/api/v1/todos/{todoId}/complete", todo.id)
+        .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
         .exchange()
         .expectStatus()
         .isUnauthorized
 
-      assertFalse(todoService.findById(todo.id)!!.completed)
+      assertFalse(todoService.findByIdentifier(todo.identifier)!!.completed)
     }
 
   @Test
@@ -304,14 +305,14 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         concurrently {
           client
             .patch()
-            .uri("/api/v1/todos/{todoId}/complete", todo.id)
+            .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
             .exchange()
-            .returnResult(Void::class.java)
+            .returnResult<Void>()
             .status
         }
 
       assertEquals(List(CONCURRENT_REQUESTS) { HttpStatus.NO_CONTENT }, statuses)
-      val stored = todoService.findById(todo.id)
+      val stored = todoService.findByIdentifier(todo.identifier)
       assertEquals(true, stored?.completed)
       assertEquals(todo.version!! + 1, stored?.version)
     }
@@ -325,14 +326,14 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .delete()
-        .uri("/api/v1/todos/{todoId}", todo.id)
+        .uri("/api/v1/todos/{todoId}", todo.identifier)
         .exchange()
         .expectStatus()
         .isNoContent
         .expectBody()
         .isEmpty
 
-      assertNull(todoService.findById(todo.id))
+      assertNull(todoService.findByIdentifier(todo.identifier))
     }
 
   @Test
@@ -353,12 +354,12 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
 
       clientFor(user("user-1"))
         .delete()
-        .uri("/api/v1/todos/{todoId}", todo.id)
+        .uri("/api/v1/todos/{todoId}", todo.identifier)
         .exchange()
         .expectStatus()
         .isForbidden
 
-      assertNotNull(todoService.findById(todo.id))
+      assertNotNull(todoService.findByIdentifier(todo.identifier))
     }
 
   /** Sends the same request [CONCURRENT_REQUESTS] times in parallel and returns the results. */

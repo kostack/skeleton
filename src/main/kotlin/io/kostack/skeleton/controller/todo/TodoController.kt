@@ -2,13 +2,13 @@ package io.kostack.skeleton.controller.todo
 
 import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
-import io.kostack.skeleton.controller.todo.query.TodoListQuery
+import io.kostack.skeleton.controller.todo.filter.TodoListFilter
 import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.controller.todo.response.TodoResponse
 import io.kostack.skeleton.controller.todo.response.toResponse
-import io.kostack.skeleton.db.mongodb.model.Todo
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.service.todo.TodoService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -43,7 +43,7 @@ class TodoController(
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend fun listAction(
     @ParameterObject pageable: Pageable,
-    @Valid @ParameterObject query: TodoListQuery,
+    @Valid @ParameterObject query: TodoListFilter,
     @AuthenticationPrincipal user: User
   ): Pagination<TodoListResponse> = todoService.list(pageable, query, user)
 

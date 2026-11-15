@@ -27,6 +27,8 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   runtimeOnly("com.mysql:mysql-connector-j")
 
+  implementation("io.github.kostack:database-tools:1.2.0-rc1")
+
   // Testcontainers: MySQL, MongoDB and RabbitMQ for integration tests, wired via @ServiceConnection
   testImplementation("org.springframework.boot:spring-boot-testcontainers")
   testImplementation("org.testcontainers:testcontainers-junit-jupiter")

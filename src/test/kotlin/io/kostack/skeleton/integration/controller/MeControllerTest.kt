@@ -1,6 +1,6 @@
 package io.kostack.skeleton.integration.controller
 
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -10,35 +10,13 @@ import org.springframework.test.web.reactive.server.expectBody
 
 class MeControllerTest : BaseControllerIntegrationTest() {
   @Test
-  fun `authenticated request returns current user v1`() =
+  fun `authenticated request returns current user`() =
     runTest {
       clientFor(user("user-1"))
         .get()
         .uri { uriBuilder ->
           uriBuilder
             .path("/api/v1/me")
-            .build()
-        }.accept(MediaType.APPLICATION_JSON)
-        .exchange()
-        .expectStatus()
-        .isOk
-        .expectBody<String>()
-        .value { response ->
-          assertEquals(
-            "user-1",
-            response
-          )
-        }
-    }
-
-  @Test
-  fun `authenticated request returns current user v2`() =
-    runTest {
-      clientFor(user("user-1"))
-        .get()
-        .uri { uriBuilder ->
-          uriBuilder
-            .path("/api/v2/me")
             .build()
         }.accept(MediaType.APPLICATION_JSON)
         .exchange()

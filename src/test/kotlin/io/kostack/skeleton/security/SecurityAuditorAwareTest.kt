@@ -1,6 +1,6 @@
 package io.kostack.skeleton.security
 
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import org.junit.jupiter.api.Test
 import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.authentication.TestingAuthenticationToken

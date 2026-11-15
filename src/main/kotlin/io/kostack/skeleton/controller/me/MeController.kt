@@ -1,6 +1,6 @@
 package io.kostack.skeleton.controller.me
 
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.MediaType
@@ -17,13 +17,8 @@ class MeController {
     operationId = "meAction",
     summary = "Retrieve current user"
   )
-  @GetMapping("/me", version = "1", produces = [MediaType.APPLICATION_JSON_VALUE])
+  @GetMapping("/me", version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend fun meAction(
-    @AuthenticationPrincipal principal: User
-  ): String = principal.identity
-
-  @GetMapping("/me", version = "2+", produces = [MediaType.APPLICATION_JSON_VALUE])
-  suspend fun meActionV2(
     @AuthenticationPrincipal principal: User
   ): User = principal
 }

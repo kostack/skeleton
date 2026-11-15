@@ -1,6 +1,6 @@
 package io.kostack.skeleton.security
 
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.service.user.UserService
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -17,7 +17,7 @@ class UserProviderImplTest {
   @Test
   fun `load returns the stored user and ignores the roles claim`() =
     runTest {
-      val stored = User(id = 1, identity = "user-1", roles = listOf("ROLE_USER"))
+      val stored = User(id = "user-id-1", identity = "user-1", roles = listOf("ROLE_USER"))
       coEvery { userService.findByIdentity("user-1") } returns stored
 
       val result = userProvider.load("user-1", mapOf("roles" to listOf("ROLE_ADMIN")))

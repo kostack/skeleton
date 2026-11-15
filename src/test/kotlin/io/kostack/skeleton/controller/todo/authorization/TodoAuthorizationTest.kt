@@ -1,7 +1,7 @@
 package io.kostack.skeleton.controller.todo.authorization
 
-import io.kostack.skeleton.db.mongodb.model.Todo
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
 import java.time.Duration
@@ -11,7 +11,7 @@ class TodoAuthorizationTest {
 
   private val owner = User(identity = "user-1", roles = listOf("ROLE_USER"))
   private val otherUser = User(identity = "user-2", roles = listOf("ROLE_USER"))
-  private val todo = Todo(id = "todo-1", title = "Write unit tests", createdBy = owner.identity)
+  private val todo = Todo(id = 1, identifier = "todo-1", title = "Write unit tests", createdBy = owner.identity)
 
   @Test
   fun `requireOwner grants access to the user who created the todo`() {

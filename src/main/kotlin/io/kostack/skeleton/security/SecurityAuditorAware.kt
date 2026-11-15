@@ -1,6 +1,6 @@
 package io.kostack.skeleton.security
 
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import org.springframework.data.domain.ReactiveAuditorAware
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.stereotype.Component

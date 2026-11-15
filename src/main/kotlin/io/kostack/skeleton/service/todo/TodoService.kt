@@ -1,17 +1,19 @@
 package io.kostack.skeleton.service.todo
 
 import io.github.kostack.database_tools.paginator.Pagination
-import io.kostack.skeleton.controller.todo.query.TodoListQuery
+import io.kostack.skeleton.controller.todo.filter.TodoListFilter
 import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
-import io.kostack.skeleton.db.mongodb.model.Todo
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import org.springframework.data.domain.Pageable
 
 interface TodoService {
   suspend fun save(todo: Todo): Todo
 
-  suspend fun findById(id: String): Todo?
+  suspend fun findById(id: Long): Todo?
+
+  suspend fun findByIdentifier(identifier: String): Todo?
 
   suspend fun findByTitle(title: String): Todo?
 
@@ -26,7 +28,7 @@ interface TodoService {
 
   suspend fun list(
     pageable: Pageable,
-    requestQuery: TodoListQuery,
+    filter: TodoListFilter,
     user: User
   ): Pagination<TodoListResponse>
 }

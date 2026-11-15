@@ -1,7 +1,7 @@
-package io.kostack.skeleton.fixture.r2dbc
+package io.kostack.skeleton.fixture.mongodb
 
 import io.github.kostack.fixtures.AbstractFixture
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.service.user.UserService
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component

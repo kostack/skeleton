@@ -1,11 +1,11 @@
 package io.kostack.skeleton.service.todo
 
-import io.github.kostack.database_tools.paginator.MongoDbPaginator
+import io.github.kostack.database_tools.r2dbc.grid.GridQueryBuilder
 import io.github.kostack.spring_tools.exception.ValidationException
 import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
-import io.kostack.skeleton.db.mongodb.model.Todo
-import io.kostack.skeleton.db.mongodb.repository.TodoRepository
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Todo
+import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -18,10 +18,11 @@ import kotlin.test.assertEquals
 
 class TodoServiceImplTest {
   private val todoRepository = mockk<TodoRepository>()
-  private val todoService = TodoServiceImpl(todoRepository, mockk<MongoDbPaginator>())
+  private val todoService = TodoServiceImpl(todoRepository, mockk<GridQueryBuilder>())
 
   private val user = User(identity = "user-1", roles = listOf("ROLE_USER"))
-  private val todo = Todo(id = "todo-1", title = "Write unit tests", createdBy = user.identity, version = 0)
+  private val todo =
+    Todo(id = 1, identifier = "todo-1", title = "Write unit tests", createdBy = user.identity, version = 0)
 
   @Test
   fun `create reports a duplicate title rejected by the unique index as a title violation`() =

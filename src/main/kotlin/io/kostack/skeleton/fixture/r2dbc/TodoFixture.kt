@@ -1,8 +1,8 @@
-package io.kostack.skeleton.fixture.mongodb
+package io.kostack.skeleton.fixture.r2dbc
 
 import io.github.kostack.fixtures.AbstractFixture
-import io.kostack.skeleton.db.mongodb.model.Todo
-import io.kostack.skeleton.db.r2dbc.model.User
+import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.service.todo.TodoService
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
@@ -29,7 +29,7 @@ class TodoFixture(
     val todo =
       service.save(
         Todo(
-          id = UUID.randomUUID().toString(),
+          identifier = UUID.randomUUID().toString(),
           title = "${faker.word().noun()} $idx",
           completed = completed,
           createdBy = user.identity

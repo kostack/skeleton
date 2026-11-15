@@ -2,7 +2,7 @@ package io.kostack.skeleton.controller.todo.resolver
 
 import io.github.kostack.spring_tools.controller.resolver.MethodArgumentResolver
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
-import io.kostack.skeleton.db.mongodb.model.Todo
+import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.service.todo.TodoService
 import kotlinx.coroutines.reactor.mono
 import org.springframework.core.MethodParameter
@@ -29,7 +29,7 @@ class TodoArgumentResolver(
     exchange: ServerWebExchange
   ): Mono<Any> =
     mono {
-      val id = getPathParameter<String>("todoId", exchange)
-      return@mono todoService.findById(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+      val identifier = getPathParameter<String>("todoId", exchange)
+      return@mono todoService.findByIdentifier(identifier) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     }
 }
