@@ -7,11 +7,7 @@ import io.kostack.skeleton.controller.todo.response.TodoResponse
 import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import io.kostack.skeleton.service.todo.TodoService
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
@@ -201,7 +197,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       val client = clientFor(user("user-1"))
 
       val statuses =
-        concurrently {
+        concurrently(CONCURRENT_REQUESTS) {
           client
             .post()
             .uri("/api/v1/todos")
@@ -302,7 +298,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       val client = clientFor(user("user-1"))
 
       val statuses =
-        concurrently {
+        concurrently(CONCURRENT_REQUESTS) {
           client
             .patch()
             .uri("/api/v1/todos/{todoId}/complete", todo.identifier)
@@ -360,12 +356,6 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .isForbidden
 
       assertNotNull(todoService.findByIdentifier(todo.identifier))
-    }
-
-  /** Sends the same request [CONCURRENT_REQUESTS] times in parallel and returns the results. */
-  private suspend fun <T> concurrently(request: () -> T): List<T> =
-    withContext(Dispatchers.IO) {
-      List(CONCURRENT_REQUESTS) { async { request() } }.awaitAll()
     }
 
   companion object {

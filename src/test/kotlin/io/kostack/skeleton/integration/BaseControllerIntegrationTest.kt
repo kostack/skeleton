@@ -6,7 +6,11 @@ import io.github.kostack.jwt_security.autoconfigure.SecurityProperties
 import io.github.kostack.jwt_security.encoder.JwtEncoder
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.service.user.UserService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.parallel.ResourceLock
 import org.springframework.beans.factory.annotation.Autowired
@@ -68,5 +72,19 @@ abstract class BaseControllerIntegrationTest {
       .mutate()
       .defaultHeader(header, value)
       .build()
+  }
+
+  protected suspend fun <T> concurrently(
+    times: Int = DEFAULT_CONCURRENT_REQUESTS,
+    request: suspend () -> T
+  ): List<T> {
+    require(times > 0) { "times must be positive, was $times" }
+    return withContext(Dispatchers.IO) {
+      List(times) { async { request() } }.awaitAll()
+    }
+  }
+
+  companion object {
+    const val DEFAULT_CONCURRENT_REQUESTS = 8
   }
 }

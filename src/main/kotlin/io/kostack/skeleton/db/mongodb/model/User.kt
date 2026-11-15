@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import io.github.kostack.jwt_security.dto.JwtUser
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Version
+import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import java.util.UUID
 
 @Document("users")
 data class User(
   @Id val id: String = UUID.randomUUID().toString(),
-  override val identity: String,
+  @Indexed(unique = true) override val identity: String,
   val roles: List<String>,
   @JsonIgnore @Version val version: Long? = null
 ) : JwtUser {

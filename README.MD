@@ -110,6 +110,8 @@ CREATE DATABASE skeleton;
 
 Flyway applies migrations from `src/main/resources/db/migration` when the application starts.
 
+Users are stored in MongoDB (`users` collection). Todos are stored in MySQL (`todos` table) and accessed through R2DBC. A todo's `created_by` holds the user's identity, so it is not a database foreign key.
+
 ### How to generate JWT keys
 
 Create a local RSA key pair in a temporary directory outside the project:
@@ -233,8 +235,14 @@ For local development, generate a token with the `generate-token` shell command 
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
-| `GET /api/v1/me` | Returns the current user | Requires `ROLE_ADMIN` |
-| `GET /api/v1/todos` | Returns paginated todos created by the current user | Requires an authenticated user |
+| `GET /api/v1/me` | Returns the current user | Any authenticated user |
+| `GET /api/v1/todos` | Returns paginated todos created by the current user; filter by `title` and `completed`, sort by `title`, `completed`, or `lastModifiedAt` | Any authenticated user |
+| `POST /api/v1/todos` | Creates a todo; returns `201` with the todo, or `400` if the title is invalid or already used | Any authenticated user |
+| `GET /api/v1/todos/{todoId}` | Returns a todo | Owner only |
+| `PATCH /api/v1/todos/{todoId}/complete` | Marks a todo as completed; returns `204`, also when it is already completed | Owner only |
+| `DELETE /api/v1/todos/{todoId}` | Deletes a todo; returns `204` | Owner only |
+
+`{todoId}` is the todo's public `identifier` (a UUID), which every todo response includes. The numeric primary key stays internal. An unknown `identifier` returns `404`; another user's todo returns `403`.
 
 The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Scalar's authentication settings.
 
@@ -275,14 +283,14 @@ Commands print their results directly to the terminal.
 ### Generate a local token
 
 ```text
-generate-token -u admin-1 -r ROLE_ADMIN
+generate-token -u user-1 -r ROLE_USER
 ```
 
 The command signs a token with the `local` issuer and prints only the token, so it can be copied directly.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `-u`, `--identity` | Yes | — | Identity of an existing user; the fixtures create `admin-1` |
+| `-u`, `--identity` | Yes | — | Identity of an existing user; the fixtures create `user-1` and `user-2` |
 | `-r`, `--role` | No | `ROLE_CUSTOMER` | Role written to the token's `roles` claim |
 
 The command fails with `User not found` if the identity does not exist in the database.
@@ -298,6 +306,8 @@ The command sends a message with `StreamBridge` through the `demo-out` binding t
 ## How to run tests and quality checks
 
 Integration tests start their own MySQL, MongoDB, and RabbitMQ with [Testcontainers](https://testcontainers.com), so they need a running Docker daemon but never touch the shared local services. `src/test/kotlin/io/kostack/skeleton/integration/TestcontainersConfiguration.kt` defines the containers; `@ServiceConnection` replaces the R2DBC, Flyway, MongoDB, and RabbitMQ connection settings from `docker/.env`. The other variables, such as the JWT keys, still come from `docker/.env`. The containers start once per cached Spring context and are removed when the test JVM exits. Controller integration tests clear application tables and load fixtures in these containers.
+
+Controller integration tests extend `BaseControllerIntegrationTest`. It provides `clientFor(user)` for authenticated requests, `user(identity)` for fixture users, and `concurrently(times) { ... }`, which sends the same request in parallel (8 times by default) and returns the results in order. Use `concurrently` to test race conditions, such as duplicate creates or concurrent updates.
 
 Tests always run with the `test` profile (which also includes `cloud-consumer`), whatever `springProfile` or `SPRING_PROFILES_ACTIVE` is set to; the fixtures they load exist only with the `test` and `shell` profiles. Gradle loads `docker/.env.test` if it exists, otherwise `docker/.env`.
 
@@ -360,7 +370,7 @@ Build the application JAR first, then build the image from the repository root:
 docker build -f docker/Dockerfile -t skeleton-service .
 ```
 
-The Dockerfile copies the JAR and startup script; JWT keys are supplied as encoded environment values at runtime.
+The Dockerfile copies the JAR and startup script; JWT keys are supplied as encoded environment values at runtime. The image is based on the Temurin 25 JRE and runs as the unprivileged user `app` (UID `10001`). The startup script `exec`s Java, so the JVM runs as PID 1 and shuts down gracefully on `docker stop` or a Kubernetes rollout.
 
 It also copies `scripts/shell.sh`, which starts a second JVM with only the `shell` profile, using the container's environment:
 
@@ -384,7 +394,7 @@ src/main/kotlin/io/kostack/skeleton/
 ├── command/            Spring Shell commands
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
 ├── controller/         WebFlux REST controllers and DTOs
-├── db/                 MongoDB and R2DBC models and repositories
+├── db/                 MongoDB (users) and R2DBC/MySQL (todos) models and repositories
 ├── fixture/            Development and test data fixtures
 ├── security/           Authorization rules and audit support
 └── service/            Application services

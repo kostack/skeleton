@@ -6,7 +6,7 @@ spring:
   webflux:
     apiversion:
       default: 1
-      supported: 1,2
+      supported: 1
   shell:
     interactive:
       enabled: false

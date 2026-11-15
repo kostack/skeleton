@@ -5,6 +5,6 @@ import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface UserRepository : CoroutineCrudRepository<User, Long> {
+interface UserRepository : CoroutineCrudRepository<User, String> {
   suspend fun findUserByIdentity(identity: String): User?
 }

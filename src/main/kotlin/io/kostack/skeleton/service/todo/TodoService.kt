@@ -11,7 +11,7 @@ import org.springframework.data.domain.Pageable
 interface TodoService {
   suspend fun save(todo: Todo): Todo
 
-  suspend fun findById(id: Long): Todo?
+  suspend fun findById(id: String): Todo?
 
   suspend fun findByIdentifier(identifier: String): Todo?
 
