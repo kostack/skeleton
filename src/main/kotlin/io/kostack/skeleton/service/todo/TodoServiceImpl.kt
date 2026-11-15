@@ -10,8 +10,11 @@ import io.kostack.skeleton.controller.todo.filter.TodoListFilter
 import io.kostack.skeleton.controller.todo.request.TodoCreateRequest
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Todo
+import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import io.kostack.skeleton.db.r2dbc.repository.TodoRepository
+import kotlinx.coroutines.flow.toList
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.data.domain.Pageable
@@ -21,17 +24,37 @@ import java.util.UUID
 @Service
 class TodoServiceImpl(
   private val todoRepository: TodoRepository,
+  private val projectRepository: ProjectRepository,
   private val queryBuilder: GridQueryBuilder
 ) : TodoService {
   override suspend fun save(todo: Todo): Todo = todoRepository.save(todo)
 
   override suspend fun findByIdentifier(identifier: String): Todo? = todoRepository.findByIdentifier(identifier)
 
+  override suspend fun findByProject(
+    project: Project,
+    user: User
+  ): List<Todo> =
+    todoRepository
+      .findAllByProjectIdAndCreatedByOrderByCreatedAt(requireNotNull(project.id), user.identity)
+      .toList()
+
   override suspend fun create(
     todoRequest: TodoCreateRequest,
     user: User
   ): Todo {
-    val todo = Todo(identifier = UUID.randomUUID().toString(), title = todoRequest.title, createdBy = user.identity)
+    val project =
+      projectRepository.findByIdentifier(todoRequest.projectId)
+        ?: throw ValidationException(
+          listOf(ApiValidation.Violation(fieldId = "projectId", message = "Project does not exist"))
+        )
+    val todo =
+      Todo(
+        identifier = UUID.randomUUID().toString(),
+        title = todoRequest.title,
+        createdBy = user.identity,
+        projectId = requireNotNull(project.id)
+      )
     return try {
       save(todo)
     } catch (_: DuplicateKeyException) {

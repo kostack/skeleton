@@ -4,6 +4,7 @@ import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.dto.ApiValidation
 import io.kostack.skeleton.controller.todo.response.TodoListResponse
 import io.kostack.skeleton.controller.todo.response.TodoResponse
+import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.kostack.skeleton.integration.BaseControllerIntegrationTest
 import io.kostack.skeleton.service.todo.TodoService
@@ -24,12 +25,15 @@ import kotlin.test.assertTrue
  * Fixtures:
  * - user_1 owns todo_1, todo_2 (open) and todo_3 (completed)
  * - user_2 owns todo_4 (open) and todo_5 (completed)
+ * - project_1 holds todo_1, todo_2 and todo_4; project_2 holds todo_3 and todo_5
  */
 class TodoControllerTest : BaseControllerIntegrationTest() {
   @Autowired
   private lateinit var todoService: TodoService
 
   private fun todo(reference: Int): Todo = references.getReference<Todo>("todo_$reference")
+
+  private fun project(reference: Int): Project = references.getReference<Project>("project_$reference")
 
   // list
 
@@ -146,7 +150,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
           .uri("/api/v1/todos")
           .contentType(MediaType.APPLICATION_JSON)
           .accept(MediaType.APPLICATION_JSON)
-          .bodyValue(mapOf("title" to "Write integration tests"))
+          .bodyValue(mapOf("title" to "Write integration tests", "projectId" to project(1).identifier))
           .exchange()
           .expectStatus()
           .isCreated
@@ -157,7 +161,27 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
       assertNotNull(created)
       assertEquals("Write integration tests", created.title)
       assertEquals(false, created.completed)
-      assertEquals(user("user-1").identity, todoService.findByIdentifier(created.identifier)?.createdBy)
+      val saved = todoService.findByIdentifier(created.identifier)
+      assertEquals(user("user-1").identity, saved?.createdBy)
+      assertEquals(project(1).id, saved?.projectId)
+    }
+
+  @Test
+  fun `create with unknown project returns 400`() =
+    runTest {
+      clientFor(user("user-1"))
+        .post()
+        .uri("/api/v1/todos")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("title" to "Orphan todo", "projectId" to "missing"))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+        .expectBody<ApiValidation>()
+        .value { response ->
+          assertEquals(listOf("projectId"), response?.violations?.map { it.fieldId })
+        }
     }
 
   @Test
@@ -168,7 +192,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .uri("/api/v1/todos")
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("title" to "abc"))
+        .bodyValue(mapOf("title" to "abc", "projectId" to project(1).identifier))
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -186,7 +210,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
         .uri("/api/v1/todos")
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("title" to todo(1).title))
+        .bodyValue(mapOf("title" to todo(1).title, "projectId" to project(1).identifier))
         .exchange()
         .expectStatus()
         .is4xxClientError
@@ -203,7 +227,7 @@ class TodoControllerTest : BaseControllerIntegrationTest() {
             .post()
             .uri("/api/v1/todos")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(mapOf("title" to "Concurrent todo"))
+            .bodyValue(mapOf("title" to "Concurrent todo", "projectId" to project(1).identifier))
             .exchange()
             .returnResult<ApiValidation>()
             .let { it.status to it.responseBody.blockFirst() }

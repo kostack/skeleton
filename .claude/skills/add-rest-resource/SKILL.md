@@ -23,15 +23,21 @@ camelCase name, and `xxxs` the plural used in URLs and table names.
 Ask only if it isn't clear from the request:
 - Which fields, and which of them are required or unique?
 - Storage: **r2dbc/MySQL** (default for relational, user-owned data) or **MongoDB**?
-- Which actions: list, get, create, update, delete, or custom state transitions?
-- Ownership: is it owned by the creating user (`createdBy` plus `requireOwner`), or shared?
+- Which actions: list, get, create, update, delete, or custom state transitions? Build only the
+  actions that were requested by name. Never add the rest of the CRUD set "for completeness". If the
+  request doesn't name any actions (for example "create the X controller"), create no actions: build
+  only what was asked for, such as an empty controller class.
+- Ownership: is it owned by the creating user (`createdBy` plus `requireOwner`), or shared? Shared
+  resources (catalogs, projects that everyone can see) have no `createdBy`. If it's unclear, ask
+  instead of adding the field by default.
 
 ## 2. Persistence
 
 R2DBC:
 1. `db/r2dbc/model/Xxx.kt`: a `@Table("xxxs")` data class with `@Id id: Long? = null`,
    `identifier: String`, the domain fields, `@CreatedDate createdAt`, `@LastModifiedDate lastModifiedAt`,
-   `createdBy: String`, and `@Version version: Long? = null`.
+   and `@Version version: Long? = null`. Add `createdBy: String` (the user's identity, column
+   `created_by VARCHAR(36) NOT NULL`) only for user-owned resources.
 2. `db/r2dbc/repository/XxxRepository.kt`: `CoroutineCrudRepository<Xxx, Long>` with
    `suspend fun findByIdentifier(identifier: String): Xxx?`.
 3. A new `src/main/resources/db/migration/V<next>__create_xxxs.sql` matching the entity: snake_case
@@ -46,16 +52,18 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 
 - `service/xxx/XxxService.kt` (interface) and `XxxServiceImpl.kt` (`@Service`). All methods are
   `suspend`.
-- Include `findByIdentifier` (the argument resolver needs it) and `save`.
-- `create(request, user)` generates `identifier = UUID.randomUUID().toString()` and sets
-  `createdBy = user.identity`.
+- Add only the methods the requested actions need, plus `save` (used by fixtures) and
+  `findByIdentifier` when an action takes the entity from the path (the argument resolver needs it).
+- `create(request, user)` generates `identifier = UUID.randomUUID().toString()` and, for user-owned
+  resources, sets `createdBy = user.identity`. Shared resources don't need the `user` parameter.
 - Let unique indexes enforce uniqueness: catch `DuplicateKeyException` and throw
   `ValidationException(listOf(ApiValidation.Violation(fieldId = "...", message = "...")))`.
 - State transitions must be idempotent where it makes sense. Swallow
   `OptimisticLockingFailureException` only when a concurrent writer reaching the same state is
   harmless (see `TodoServiceImpl.complete`).
 - `list(pageable, filter, user)` uses `GridQueryBuilder` + `table<Xxx>("X")` and
-  `pageable.toPageRequest(XxxListFilter::class)`, scoped to the owner.
+  `pageable.toPageRequest(XxxListFilter::class)`. Scope it to the owner (`createdBy`) only for
+  user-owned resources.
 
 ## 4. Controller package `controller/xxx/`
 
@@ -72,7 +80,11 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
   `fun requireOwner(xxx: Xxx, principal: User): Mono<Boolean> = mono { ... }`.
 - `XxxController.kt`:
   - `@Tag`, `@RequestMapping("/api/{version}/xxxs")`, `@RestController`
-  - methods `suspend fun listAction / getAction / createAction / updateAction / deleteAction`
+  - one `suspend fun <verb>Action` per requested action (`listAction`, `getAction`, `createAction`,
+    `updateAction`, `deleteAction`, or a custom verb), and no others. With no requested actions,
+    the controller has only its class annotations and constructor
+  - add request DTOs, filters, the resolver and the authorization component only when a requested
+    action uses them
   - `@Operation(operationId = "xxx_<verb>_action", summary = "...")` on each
   - `version = "1+"` and explicit `produces`/`consumes` on each mapping
   - `@ResponseStatus(HttpStatus.CREATED)` for create, `NO_CONTENT` for body-less updates and deletes
@@ -84,8 +96,8 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 ## 5. Fixtures and manual calls
 
 - `fixture/r2dbc/XxxFixture.kt`: extends `AbstractFixture`, gets an `@Order` after the fixtures it
-  references, and stores references as `xxx_<n>`. Cover data for at least two users, so tests can
-  check ownership.
+  references, and stores references as `xxx_<n>`. For user-owned resources, cover data for at least
+  two users, so tests can check ownership.
 - `http/xxx.http`: one request per endpoint, using `{{baseUrl}}` and `{{authToken}}` (see `http/me.http`).
 
 ## 6. Tests
@@ -110,4 +122,5 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 - [ ] Uniqueness is enforced by the database and mapped to `ValidationException`
 - [ ] A new migration exists, and no existing migration was edited
 - [ ] No blocking calls (`.block()`, JDBC, `Thread.sleep`)
+- [ ] Only the requested actions exist, with no extra endpoints, service methods or DTOs
 - [ ] Fixture, `.http` file, unit tests, and integration tests are added

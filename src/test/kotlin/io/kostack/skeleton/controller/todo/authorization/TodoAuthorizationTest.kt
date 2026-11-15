@@ -11,7 +11,8 @@ class TodoAuthorizationTest {
 
   private val owner = User(identity = "user-1", roles = listOf("ROLE_USER"))
   private val otherUser = User(identity = "user-2", roles = listOf("ROLE_USER"))
-  private val todo = Todo(id = 1, identifier = "todo-1", title = "Write unit tests", createdBy = owner.identity)
+  private val todo =
+    Todo(id = 1, identifier = "todo-1", title = "Write unit tests", projectId = 1, createdBy = owner.identity)
 
   @Test
   fun `requireOwner grants access to the user who created the todo`() {

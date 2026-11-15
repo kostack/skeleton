@@ -1,0 +1,18 @@
+### List projects
+GET {{baseUrl}}/api/v1/projects?name=web&sort=name,asc
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+### Get a project
+GET {{baseUrl}}/api/v1/projects/{{projectId}}
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+### Create a project
+POST {{baseUrl}}/api/v1/projects
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Website"
+}

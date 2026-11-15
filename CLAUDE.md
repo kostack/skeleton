@@ -46,6 +46,8 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 - Base path `@RequestMapping("/api/{version}/<plural>")`. Every mapping declares `version = "1+"`
   (or a range when a version changes behavior).
 - Handlers are `suspend fun <verb>Action(...)`, for example `listAction` or `createAction`.
+- Add only the actions that were requested by name. "Create the X controller" means the class with
+  no actions. Never add CRUD actions (or their DTOs, resolvers and tests) that nobody asked for.
 - Every endpoint has `@Operation(operationId = "<resource>_<verb>_action", summary = "...")`.
   The class has `@Tag`.
 - Declare `produces`/`consumes = [MediaType.APPLICATION_JSON_VALUE]` explicitly.
@@ -70,8 +72,8 @@ Reference implementation for everything: the `todo` resource. When in doubt, cop
 
 - Public IDs: expose a UUID string `identifier`, never the numeric `id` (R2DBC) or the Mongo `_id`.
 - R2DBC entities have `@Id id: Long?`, `@CreatedDate createdAt`, `@LastModifiedDate lastModifiedAt`
-  (`Instant`), `createdBy: String` (the user's identity), and `@Version version: Long?` for
-  optimistic locking.
+  (`Instant`), and `@Version version: Long?` for optimistic locking. Only user-owned entities have
+  `createdBy: String` (the user's identity); shared entities don't.
 - Let unique constraints in the database enforce uniqueness. Catch `DuplicateKeyException` and turn
   it into a `ValidationException`. Do not check first and then insert.
 - Migrations: add a new `V<n+1>__...sql`. Never edit a migration that has already been applied.

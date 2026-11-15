@@ -13,6 +13,7 @@ data class Todo(
   val identifier: String,
   val title: String,
   val completed: Boolean = false,
+  val projectId: Long,
   @CreatedDate val createdAt: Instant = Instant.now(),
   @LastModifiedDate val lastModifiedAt: Instant = Instant.now(),
   val createdBy: String,
