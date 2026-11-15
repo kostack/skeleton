@@ -10,14 +10,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 /**
  * Fixtures:
- * - user_1 is "Alice Example", user_2 is "Bob Example"
- * - project_1 (owner user_1) features task_1; project_2 (owner user_2) features no task
- * - projects are shared: every authenticated user can read all of them
+ * - project_1 (owner user_1) features task_1; project_3 (owner user_1) features no task
+ * - project_2 is owned by user_2
+ * - only the owner may read a project
  */
 class GetProjectIntegrationTest : BaseIntegrationTest() {
   private fun project(reference: Int): Project = references.getReference<Project>("project_$reference")
@@ -25,12 +24,12 @@ class GetProjectIntegrationTest : BaseIntegrationTest() {
   private fun task(reference: Int): Task = references.getReference<Task>("task_$reference")
 
   @Test
-  fun `get returns the project with its owner and featured task summaries`() =
+  fun `get returns the project with its featured task summary`() =
     runTest {
       val project = project(1)
       val task = task(1)
 
-      clientFor(user("user-2"))
+      clientFor(user("user-1"))
         .get()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .accept(MediaType.APPLICATION_JSON)
@@ -41,7 +40,6 @@ class GetProjectIntegrationTest : BaseIntegrationTest() {
         .value { response ->
           assertEquals(project.identifier, response?.identifier)
           assertEquals(project.name, response?.name)
-          assertEquals(ProjectOwnerResponse(id = "user-1", name = "Alice Example"), response?.owner)
           assertEquals(
             ProjectFeaturedTaskResponse(identifier = task.identifier, title = task.title, status = task.status),
             response?.featuredTask
@@ -54,30 +52,25 @@ class GetProjectIntegrationTest : BaseIntegrationTest() {
     runTest {
       clientFor(user("user-1"))
         .get()
-        .uri("/api/v1/projects/{projectId}", project(2).identifier)
+        .uri("/api/v1/projects/{projectId}", project(3).identifier)
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk
         .expectBody<ProjectResponse>()
-        .value { response ->
-          assertEquals(ProjectOwnerResponse(id = "user-2", name = "Bob Example"), response?.owner)
-          assertNull(response?.featuredTask)
-        }
+        .value { response -> assertNull(response?.featuredTask) }
     }
 
   @Test
-  fun `get does not expose the owner's email`() =
+  fun `get another user's project returns 403`() =
     runTest {
       clientFor(user("user-1"))
         .get()
-        .uri("/api/v1/projects/{projectId}", project(1).identifier)
+        .uri("/api/v1/projects/{projectId}", project(2).identifier)
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
-        .isOk
-        .expectBody(String::class.java)
-        .value { body -> assertFalse(body!!.contains("@example.com"), body) }
+        .isForbidden
     }
 
   @Test

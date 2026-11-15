@@ -2,7 +2,6 @@ package io.kostack.skeleton.integration.api.project.operation
 
 import io.github.kostack.spring_tools.dto.ApiValidation
 import io.kostack.skeleton.api.project.response.ProjectResponse
-import io.kostack.skeleton.db.mongodb.repository.UserRepository
 import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import io.kostack.skeleton.integration.BaseIntegrationTest
 import kotlinx.coroutines.test.runTest
@@ -16,15 +15,12 @@ import kotlin.test.assertNull
 
 /**
  * Fixtures:
- * - user_1 (user-1, "Alice Example") and user_2 (user-2) are stored users
+ * - user_1 (user-1) and user_2 (user-2) are stored users
  * - project_1 and project_3 are owned by user_1, project_2 by user_2
  */
 class CreateProjectIntegrationTest : BaseIntegrationTest() {
   @Autowired
   private lateinit var projectRepository: ProjectRepository
-
-  @Autowired
-  private lateinit var userRepository: UserRepository
 
   @Test
   fun `create returns the project owned by the current user`() =
@@ -46,7 +42,6 @@ class CreateProjectIntegrationTest : BaseIntegrationTest() {
       assertNotNull(created)
       assertEquals("Website", created.name)
       assertEquals("Relaunch", created.description)
-      assertEquals(ProjectOwnerResponse(id = "user-1", name = "Alice Example"), created.owner)
       assertNull(created.featuredTask)
       val saved = projectRepository.findByIdentifier(created.identifier)
       assertEquals("user-1", saved?.ownerId)
@@ -70,11 +65,11 @@ class CreateProjectIntegrationTest : BaseIntegrationTest() {
           .responseBody
 
       assertNull(created?.description)
-      assertEquals("user-2", created?.owner?.id)
+      assertEquals("user-2", projectRepository.findByIdentifier(created!!.identifier)?.ownerId)
     }
 
   @Test
-  fun `create by a user known only from the token stores that user as owner`() =
+  fun `create by a user known only from the token owns the project`() =
     runTest {
       val newcomer =
         user(
@@ -82,42 +77,40 @@ class CreateProjectIntegrationTest : BaseIntegrationTest() {
           mapOf("name" to "Nina New", "email" to "user-9@example.com", "roles" to listOf("ROLE_USER"))
         )
 
-      clientFor(newcomer)
-        .post()
-        .uri("/api/v1/projects")
-        .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("name" to "First project"))
-        .exchange()
-        .expectStatus()
-        .isCreated
-        .expectBody<ProjectResponse>()
-        .value { response ->
-          assertEquals(ProjectOwnerResponse(id = "user-9", name = "Nina New"), response?.owner)
-        }
+      val created =
+        clientFor(newcomer)
+          .post()
+          .uri("/api/v1/projects")
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(mapOf("name" to "First project"))
+          .exchange()
+          .expectStatus()
+          .isCreated
+          .expectBody<ProjectResponse>()
+          .returnResult()
+          .responseBody
 
-      assertEquals("Nina New", userRepository.findByIdentity("user-9")?.name)
+      assertEquals("user-9", projectRepository.findByIdentifier(created!!.identifier)?.ownerId)
     }
 
   @Test
-  fun `create with a client-supplied ownerId is rejected`() =
+  fun `create ignores a client-supplied ownerId and uses the current user`() =
     runTest {
-      val before = projectRepository.count()
+      val created =
+        clientFor(user("user-1"))
+          .post()
+          .uri("/api/v1/projects")
+          .contentType(MediaType.APPLICATION_JSON)
+          .accept(MediaType.APPLICATION_JSON)
+          .bodyValue(mapOf("name" to "Hijacked", "ownerId" to "user-2"))
+          .exchange()
+          .expectStatus()
+          .isCreated
+          .expectBody<ProjectResponse>()
+          .returnResult()
+          .responseBody
 
-      clientFor(user("user-1"))
-        .post()
-        .uri("/api/v1/projects")
-        .contentType(MediaType.APPLICATION_JSON)
-        .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("name" to "Hijacked", "ownerId" to "user-2"))
-        .exchange()
-        .expectStatus()
-        .isBadRequest
-        .expectBody<ApiValidation>()
-        .value { response ->
-          assertEquals(listOf("ownerId"), response?.violations?.map { it.fieldId })
-        }
-
-      assertEquals(before, projectRepository.count())
+      assertEquals("user-1", projectRepository.findByIdentifier(created!!.identifier)?.ownerId)
     }
 
   @Test

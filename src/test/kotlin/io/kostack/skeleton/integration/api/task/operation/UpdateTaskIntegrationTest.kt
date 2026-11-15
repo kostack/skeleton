@@ -1,8 +1,8 @@
 package io.kostack.skeleton.integration.api.task.operation
 
 import io.github.kostack.spring_tools.dto.ApiValidation
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import io.kostack.skeleton.db.r2dbc.model.Task
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
 import io.kostack.skeleton.db.r2dbc.repository.TaskRepository
 import io.kostack.skeleton.integration.BaseIntegrationTest
 import kotlinx.coroutines.test.runTest
@@ -11,12 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /**
  * Fixtures:
  * - task_1 (project_1, TODO, assigned to user_1); task_4 (project_1, TODO, unassigned)
  * - user_2 and user_3 exist; user-404 does not
+ * - title and status are required on every update; assigneeId is kept when absent or null
  */
 class UpdateTaskIntegrationTest : BaseIntegrationTest() {
   @Autowired
@@ -56,7 +56,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
         .patch()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("assigneeId" to "user-3"))
+        .bodyValue(mapOf("title" to task.title, "status" to task.status.name, "assigneeId" to "user-3"))
         .exchange()
         .expectStatus()
         .isNoContent
@@ -65,7 +65,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
-  fun `update with null assigneeId unassigns the task`() =
+  fun `update with null assigneeId keeps the assignee`() =
     runTest {
       val task = task(1)
 
@@ -73,14 +73,14 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
         .patch()
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue("""{"assigneeId": null}""")
+        .bodyValue("""{"title": "${task.title}", "status": "DONE", "assigneeId": null}""")
         .exchange()
         .expectStatus()
         .isNoContent
 
       val stored = taskRepository.findByIdentifier(task.identifier)
-      assertNull(stored?.assigneeId)
-      assertEquals(task.title, stored?.title)
+      assertEquals("user-1", stored?.assigneeId)
+      assertEquals(TaskStatus.DONE, stored?.status)
     }
 
   @Test
@@ -93,7 +93,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
         .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("assigneeId" to "user-404"))
+        .bodyValue(mapOf("title" to task.title, "status" to task.status.name, "assigneeId" to "user-404"))
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -106,13 +106,32 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
-  fun `update with unknown status returns 400`() =
+  fun `update without status returns 400 and leaves the task unchanged`() =
     runTest {
+      val task = task(1)
+
       clientFor(user("user-1"))
         .patch()
-        .uri("/api/v1/tasks/{taskId}", task(1).identifier)
+        .uri("/api/v1/tasks/{taskId}", task.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("status" to "LATER"))
+        .bodyValue(mapOf("title" to "Renamed task"))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+
+      assertEquals(task.title, taskRepository.findByIdentifier(task.identifier)?.title)
+    }
+
+  @Test
+  fun `update with unknown status returns 400`() =
+    runTest {
+      val task = task(1)
+
+      clientFor(user("user-1"))
+        .patch()
+        .uri("/api/v1/tasks/{taskId}", task.identifier)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("title" to task.title, "status" to "LATER"))
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -125,7 +144,7 @@ class UpdateTaskIntegrationTest : BaseIntegrationTest() {
         .patch()
         .uri("/api/v1/tasks/{taskId}", "does-not-exist")
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("title" to "Renamed task"))
+        .bodyValue(mapOf("title" to "Renamed task", "status" to "TODO"))
         .exchange()
         .expectStatus()
         .isNotFound

@@ -16,7 +16,6 @@ import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
-import java.util.UUID
 
 @TaskOperation
 class CreateTask(
@@ -52,7 +51,6 @@ class CreateTask(
     val task =
       taskRepository.save(
         Task(
-          identifier = UUID.randomUUID().toString(),
           projectId = requireNotNull(project.id),
           title = command.title,
           assigneeId = assignee?.identity

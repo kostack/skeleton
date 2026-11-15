@@ -2,9 +2,9 @@ package io.kostack.skeleton.fixture.r2dbc
 
 import io.github.kostack.fixtures.AbstractFixture
 import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Task
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
 import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import io.kostack.skeleton.db.r2dbc.repository.TaskRepository
 import org.springframework.core.annotation.Order

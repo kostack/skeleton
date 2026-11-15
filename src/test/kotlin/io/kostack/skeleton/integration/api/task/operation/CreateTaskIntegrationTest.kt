@@ -3,8 +3,8 @@ package io.kostack.skeleton.integration.api.task.operation
 import io.github.kostack.spring_tools.dto.ApiValidation
 import io.kostack.skeleton.api.task.response.TaskAssigneeResponse
 import io.kostack.skeleton.api.task.response.TaskResponse
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import io.kostack.skeleton.db.r2dbc.model.Project
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
 import io.kostack.skeleton.db.r2dbc.repository.TaskRepository
 import io.kostack.skeleton.integration.BaseIntegrationTest
 import kotlinx.coroutines.test.runTest

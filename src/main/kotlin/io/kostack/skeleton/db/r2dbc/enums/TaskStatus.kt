@@ -1,4 +1,4 @@
-package io.kostack.skeleton.db.r2dbc.model
+package io.kostack.skeleton.db.r2dbc.enums
 
 enum class TaskStatus {
   TODO,

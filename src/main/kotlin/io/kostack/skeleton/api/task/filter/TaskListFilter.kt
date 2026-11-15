@@ -4,7 +4,7 @@ import io.github.kostack.database_tools.query_mapper.QueryOperator
 import io.github.kostack.database_tools.query_mapper.annotation.QueryField
 import io.github.kostack.database_tools.query_mapper.annotation.Sortable
 import io.github.kostack.database_tools.query_mapper.annotation.SortableDefaults
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import org.springframework.data.domain.Sort

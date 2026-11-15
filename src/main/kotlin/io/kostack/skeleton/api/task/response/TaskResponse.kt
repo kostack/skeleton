@@ -1,6 +1,6 @@
 package io.kostack.skeleton.api.task.response
 
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import java.time.Instant
 
 data class TaskResponse(

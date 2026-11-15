@@ -39,12 +39,12 @@ class UpdateTask(
     val assigneeId =
       when (val selection = command.assigneeId) {
         null -> task.assigneeId
-        else -> selection.orElse(null)?.let { existingUser(it) }
+        else -> existingUser(selection)
       }
     val updated =
       task.copy(
-        title = command.title ?: task.title,
-        status = command.status ?: task.status,
+        title = command.title,
+        status = command.status,
         assigneeId = assigneeId
       )
     if (updated == task) {

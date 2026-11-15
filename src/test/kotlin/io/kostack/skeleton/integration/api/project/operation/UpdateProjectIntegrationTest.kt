@@ -12,13 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
  * Fixtures:
- * - project_1 (owner user_1) holds task_1 to task_4 and features task_1
+ * - project_1 (owner user_1, with a description) holds task_1 to task_4 and features task_1
  * - project_2 (owner user_2) holds task_5 and features no task
+ * - name and description are replaced on every update; featuredTaskId is kept when absent or null
  */
 class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   @Autowired
@@ -55,6 +55,23 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
+  fun `update without description clears it`() =
+    runTest {
+      val project = project(1)
+
+      clientFor(user("user-1"))
+        .patch()
+        .uri("/api/v1/projects/{projectId}", project.identifier)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("name" to project.name))
+        .exchange()
+        .expectStatus()
+        .isNoContent
+
+      assertNull(projectRepository.findByIdentifier(project.identifier)?.description)
+    }
+
+  @Test
   fun `update replaces the featured task with another own task and leaves the tasks unchanged`() =
     runTest {
       val project = project(1)
@@ -63,20 +80,18 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .patch()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("featuredTaskId" to task(2).identifier))
+        .bodyValue(mapOf("name" to project.name, "featuredTaskId" to task(2).identifier))
         .exchange()
         .expectStatus()
         .isNoContent
 
-      val stored = projectRepository.findByIdentifier(project.identifier)
-      assertEquals(task(2).id, stored?.featuredTaskId)
-      assertEquals(project.name, stored?.name)
+      assertEquals(task(2).id, projectRepository.findByIdentifier(project.identifier)?.featuredTaskId)
       assertEquals(task(1).version, taskRepository.findByIdentifier(task(1).identifier)?.version)
       assertEquals(task(2).version, taskRepository.findByIdentifier(task(2).identifier)?.version)
     }
 
   @Test
-  fun `update with null featuredTaskId clears the selection and keeps the task`() =
+  fun `update with null featuredTaskId keeps the selection`() =
     runTest {
       val project = project(1)
 
@@ -84,13 +99,12 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .patch()
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
-        .bodyValue("""{"featuredTaskId": null}""")
+        .bodyValue("""{"name": "${project.name}", "featuredTaskId": null}""")
         .exchange()
         .expectStatus()
         .isNoContent
 
-      assertNull(projectRepository.findByIdentifier(project.identifier)?.featuredTaskId)
-      assertNotNull(taskRepository.findByIdentifier(task(1).identifier))
+      assertEquals(task(1).id, projectRepository.findByIdentifier(project.identifier)?.featuredTaskId)
     }
 
   @Test
@@ -103,7 +117,7 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("featuredTaskId" to task(5).identifier))
+        .bodyValue(mapOf("name" to project.name, "featuredTaskId" to task(5).identifier))
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -118,12 +132,14 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
   @Test
   fun `update with an unknown featured task is rejected`() =
     runTest {
+      val project = project(1)
+
       clientFor(user("user-1"))
         .patch()
-        .uri("/api/v1/projects/{projectId}", project(1).identifier)
+        .uri("/api/v1/projects/{projectId}", project.identifier)
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
-        .bodyValue(mapOf("featuredTaskId" to "does-not-exist"))
+        .bodyValue(mapOf("name" to project.name, "featuredTaskId" to "does-not-exist"))
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -149,6 +165,23 @@ class UpdateProjectIntegrationTest : BaseIntegrationTest() {
         .value { response ->
           assertEquals(listOf("name"), response?.violations?.map { it.fieldId })
         }
+    }
+
+  @Test
+  fun `update without name returns 400 and leaves the project unchanged`() =
+    runTest {
+      val project = project(1)
+
+      clientFor(user("user-1"))
+        .patch()
+        .uri("/api/v1/projects/{projectId}", project.identifier)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(mapOf("description" to "Only a description"))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+
+      assertEquals(project.description, projectRepository.findByIdentifier(project.identifier)?.description)
     }
 
   @Test

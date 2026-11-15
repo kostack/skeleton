@@ -1,7 +1,7 @@
 package io.kostack.skeleton.api.task.response
 
 import io.github.kostack.database_tools.query_mapper.annotation.SelectColumn
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 
 data class TaskListResponse(
   val identifier: String,

@@ -6,6 +6,7 @@ import io.github.kostack.database_tools.r2dbc.grid.GridQueryBuilder
 import io.github.kostack.database_tools.r2dbc.grid.dsl.table
 import io.kostack.skeleton.api.project.filter.ProjectListFilter
 import io.kostack.skeleton.api.project.response.ProjectListResponse
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Task
 import io.swagger.v3.oas.annotations.Operation
@@ -13,6 +14,7 @@ import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Pageable
 import org.springframework.http.MediaType
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 
 @ProjectOperation
@@ -26,13 +28,15 @@ class ListProject(
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend operator fun invoke(
     @ParameterObject pageable: Pageable,
-    @Valid @ParameterObject filter: ProjectListFilter
+    @Valid @ParameterObject filter: ProjectListFilter,
+    @AuthenticationPrincipal principal: User
   ): Pagination<ProjectListResponse> {
     val pageRequest = pageable.toPageRequest(ProjectListFilter::class)
     val project = table<Project>("p")
     val task = table<Task>("t")
     return queryBuilder
       .from(project)
+      .where(project[Project::ownerId] eq principal.identity)
       .aggregateJoin(task)
       .on(project[Project::id] eq task[Task::projectId])
       .fetchPage<ProjectListResponse>(filter, pageRequest)

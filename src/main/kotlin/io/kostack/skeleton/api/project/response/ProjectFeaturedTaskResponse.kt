@@ -1,6 +1,6 @@
 package io.kostack.skeleton.api.project.response
 
-import io.kostack.skeleton.db.r2dbc.model.TaskStatus
+import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 
 data class ProjectFeaturedTaskResponse(
   val identifier: String,
