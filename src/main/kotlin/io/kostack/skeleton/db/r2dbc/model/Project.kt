@@ -13,6 +13,9 @@ data class Project(
   @Id val id: Long? = null,
   val identifier: String = UUID.randomUUID().toString(),
   val name: String,
+  val description: String? = null,
+  val ownerId: String,
+  val featuredTaskId: Long? = null,
   @CreatedDate val createdAt: Instant = Instant.now(),
   @LastModifiedDate val lastModifiedAt: Instant = Instant.now(),
   @Version val version: Long? = null

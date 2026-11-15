@@ -110,7 +110,7 @@ CREATE DATABASE skeleton;
 
 Flyway applies migrations from `src/main/resources/db/migration` when the application starts.
 
-Users are stored in MongoDB (`users` collection). Todos are stored in MySQL (`todos` table) and accessed through R2DBC. A todo's `created_by` holds the user's identity, so it is not a database foreign key.
+Users are stored in MongoDB (`users` collection, with unique `identity` and `email`). Projects and tasks are stored in MySQL (`projects` and `tasks` tables) and accessed through R2DBC. `projects.owner_id` and `tasks.assignee_id` hold the user's identity, so they are not database foreign keys; `tasks.project_id` and `projects.featured_task_id` are.
 
 MySQL `DATETIME` columns store no time zone, so the application stores all timestamps in UTC. `main()` in `Application.kt` sets the JVM's default time zone to UTC, and the `test` task in `build.gradle.kts` does the same for tests, which do not call `main()`. Keep both if you change how the application starts.
 
@@ -221,9 +221,10 @@ curl -H "x-auth: $TOKEN" \
   http://localhost:8080/api/v1/me
 
 curl -G -H "x-auth: $TOKEN" \
-  --data-urlencode "completed=false" \
+  --data-urlencode "projectId=$PROJECT_ID" \
+  --data-urlencode "status=TODO" \
   --data-urlencode "sort=title,desc" \
-  http://localhost:8080/api/v1/todos
+  http://localhost:8080/api/v1/tasks
 ```
 
 With the `dev` profile, tokens may also be supplied through the `token` query parameter. It is disabled in other profiles because query strings end up in access logs and `Referer` headers.
@@ -235,18 +236,21 @@ Tokens must use the audience `kostack`, the `RS512` signature algorithm, and one
 | `local` | `JWT_PUBLIC_KEY`; this is also the issuer the service signs its own tokens with |
 | `user-service.local` | The JWKS at `USER_SERVICE_JWKS_URI` (default `http://user-service.local/.well-known/jwks.json`) |
 
-For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity and uses the roles stored with it, ignoring the token's `roles` claim. When no user is stored, it creates an in-memory user with the roles from the token; a token without a `roles` claim is then rejected.
+For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity and uses the roles stored with it, ignoring the token's `roles` claim. When no user is stored, it creates an in-memory user from the token's `name`, `email` and `roles` claims; a token without one of them is then rejected. Such a user is stored when they create their first project, so that every project owner can be shown by name.
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
-| `GET /api/v1/me` | Returns the current user | Any authenticated user |
-| `GET /api/v1/todos` | Returns paginated todos created by the current user; filter by `title` and `completed`, sort by `title`, `completed`, or `lastModifiedAt` | Any authenticated user |
-| `POST /api/v1/todos` | Creates a todo; returns `201` with the todo, or `400` if the title is invalid or already used | Any authenticated user |
-| `GET /api/v1/todos/{todoId}` | Returns a todo | Owner only |
-| `PATCH /api/v1/todos/{todoId}/complete` | Marks a todo as completed; returns `204`, also when it is already completed | Owner only |
-| `DELETE /api/v1/todos/{todoId}` | Deletes a todo; returns `204` | Owner only |
+| `GET /api/v1/me` | Returns the current user's `id` (identity), `name` and `email` | Any authenticated user |
+| `POST /api/v1/projects` | Creates a project from `name` and optional `description`, owned by the current user; returns `201`, or `400` if a client sends `ownerId` | Any authenticated user |
+| `GET /api/v1/projects` | Returns paginated projects; filter by `ownerId` and `name`, sort by `name` or `createdAt` | Any authenticated user |
+| `GET /api/v1/projects/{projectId}` | Returns a project with an owner summary (`id`, `name`) and its optional featured task summary | Any authenticated user |
+| `PATCH /api/v1/projects/{projectId}` | Updates `name`, `description` or `featuredTaskId` (one of the project's own tasks; `null` clears it); returns `204` | Owner only (`403` otherwise) |
+| `POST /api/v1/tasks` | Creates a `TODO` task from `projectId`, `title` and optional `assigneeId` (an existing user); returns `201` | Any authenticated user |
+| `GET /api/v1/tasks` | Returns paginated tasks of the required `projectId`; optional `assigneeId` and `status` filters are ANDed; sort by `title`, `status` or `createdAt` | Any authenticated user |
+| `GET /api/v1/tasks/{taskId}` | Returns a task with its `projectId` and optional assignee summary (`id`, `name`) | Any authenticated user |
+| `PATCH /api/v1/tasks/{taskId}` | Updates `title`, `status` or `assigneeId` (`null` unassigns); returns `204` | Any authenticated user |
 
-`{todoId}` is the todo's public `identifier` (a UUID), which every todo response includes. The numeric primary key stays internal. An unknown `identifier` returns `404`; another user's todo returns `403`.
+Projects and tasks are identified by their public `identifier` (a UUID); the numeric primary keys stay internal. Users are identified by their `identity`. An unknown `identifier` returns `404`; an unknown related id in a request body returns `400` with a violation for that field. A user's email is exposed only through `GET /api/v1/me`.
 
 The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Scalar's authentication settings.
 
@@ -397,7 +401,7 @@ src/main/kotlin/io/kostack/skeleton/
 ├── api/                REST operations (one class per endpoint), commands and DTOs
 ├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
-├── db/                 MongoDB (users) and R2DBC/MySQL (todos) models and repositories
+├── db/                 MongoDB (users) and R2DBC/MySQL (projects, tasks) models and repositories
 ├── fixture/            Development and test data fixtures
 ├── security/           Authorization rules and audit support
 └── shell/              Spring Shell commands
@@ -410,7 +414,7 @@ src/main/resources/
 ## How to extend the skeleton
 
 1. Rename the project and package from `skeleton` to your service name.
-2. Replace the example `Todo` domain, fixtures, operations, and tests.
+2. Replace the example `Project`/`Task` domain, fixtures, operations, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
 4. Replace all embedded development credentials with external configuration.
 5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.

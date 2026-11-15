@@ -31,8 +31,9 @@ fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
 resources/db/migration          Flyway: V<n>__<description>.sql
 ```
 
-Reference implementation for everything: the `todo` resource. When in doubt, copy its shape.
-`project` is the reference for a shared (not user-owned) resource.
+Reference implementation for everything: the `task` resource (shared, not user-owned). When in doubt,
+copy its shape. `project` adds an owner field and a `@PreAuthorize` owner rule (`ProjectAuthorization`).
+No user-owned (`createdBy`) resource exists at the moment; follow the ownership rules below for one.
 
 By default there is no service layer. Each operation class is the use case: it handles one endpoint
 and reads and writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and
@@ -83,20 +84,20 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
   their existence isn't revealed. In the resolver, get the user with
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User`, and throw
-  `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing (see `TodoArgumentResolver`).
+  `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing.
   Never use `authentication.name`; it isn't the identity.
 - Further access rules (roles, states) go on the handler as
   `@PreAuthorize("@<resource>Auth.<rule>(#entity, authentication.principal)")`.
 - Get the current user in a handler with `@AuthenticationPrincipal user: User` (the Mongo `User`).
-- Response DTOs are optional. Returning an entity directly is fine (see `GetMe` returning
-  `User`); hide internal fields with `@JsonIgnore`. If the API shape should differ from the entity,
+- Response DTOs are optional. Returning an entity directly is fine; hide internal fields with
+  `@JsonIgnore`. If the API shape should differ from the entity,
   add DTOs and map them with `fun Entity.toResponse()` extensions in `response/ResponseExtensions.kt`.
 - Request bodies are commands (`command/<Resource>CreateCommand`), validated with `@Valid` and
   `@field:` constraints. Report business validation errors as
   `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
   and return `Pagination<<Resource>ListResponse>`, built in the operation with `GridQueryBuilder`
-  (see `ListTodo`).
+  (see `ListTask`).
 
 ## Persistence
 
@@ -115,13 +116,13 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 
 - Operations are tested through HTTP only, with one integration test class per operation:
   `integration/api/<resource>/operation/<Operation>IntegrationTest.kt` (for example
-  `CreateTodoIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
+  `CreateTaskIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
   `references`, `concurrently { }`) and cover the operation's business rules too. Use the
   `spring-controller-integration-tests` skill.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
   In `api/`, only authorization classes get unit tests; operations and resolvers are covered by
   the integration tests. Outside `api/`, unit test classes with their own logic (`security/`).
-- Test names are backtick sentences: `` `list returns only the current user's todos` ``.
+- Test names are backtick sentences: `` `list combines filters with AND` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc.
 

@@ -16,7 +16,7 @@ class SecurityAuditorAwareTest {
 
   @Test
   fun `current auditor is the identity of the authenticated user`() {
-    val user = User(identity = "user-1", roles = listOf("ROLE_USER"))
+    val user = User(identity = "user-1", name = "Alice", email = "user-1@example.com", roles = listOf("ROLE_USER"))
     val authentication = TestingAuthenticationToken(user, null, "ROLE_USER")
 
     StepVerifier

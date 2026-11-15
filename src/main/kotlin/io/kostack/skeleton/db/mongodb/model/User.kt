@@ -11,12 +11,16 @@ import org.springframework.data.mongodb.core.mapping.Document
 data class User(
   @Id val id: String? = null,
   @Indexed(unique = true) override val identity: String,
+  val name: String,
+  @Indexed(unique = true) val email: String,
   val roles: List<String>,
   @JsonIgnore @Version val version: Long? = null
 ) : JwtUser {
   override fun claims(): Map<String, Any> =
     buildMap {
       put("identity", identity)
+      put("name", name)
+      put("email", email)
       put("roles", roles)
     }
 }

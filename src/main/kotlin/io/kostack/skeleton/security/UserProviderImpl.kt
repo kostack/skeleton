@@ -18,6 +18,8 @@ class UserProviderImpl(
     userRepository
       .findByIdentity(identity) ?: User(
       identity = identity,
+      name = claims.getClaim<String>("name"),
+      email = claims.getClaim<String>("email"),
       roles = claims.getClaim<List<String>>("roles")
     )
 }

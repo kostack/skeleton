@@ -1,5 +1,7 @@
 package io.kostack.skeleton.api.me.operation
 
+import io.kostack.skeleton.api.me.response.MeResponse
+import io.kostack.skeleton.api.me.response.toMeResponse
 import io.kostack.skeleton.db.mongodb.model.User
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.MediaType
@@ -15,5 +17,5 @@ class GetMe {
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend operator fun invoke(
     @AuthenticationPrincipal user: User
-  ): User = user
+  ): MeResponse = user.toMeResponse()
 }

@@ -1,19 +1,20 @@
 ---
 name: add-rest-resource
-description: Scaffold a new REST resource (entity, repository, operation classes, commands, DTOs, resolver, authorization, fixture, migration, tests) in this Kotlin/Spring WebFlux service following the todo reference implementation. Use when asked to add a new entity, domain object, endpoint set, controller, operation, CRUD API, or resource.
+description: Scaffold a new REST resource (entity, repository, operation classes, commands, DTOs, resolver, authorization, fixture, migration, tests) in this Kotlin/Spring WebFlux service following the task reference implementation. Use when asked to add a new entity, domain object, endpoint set, controller, operation, CRUD API, or resource.
 ---
 
 # Add a REST resource
 
-The `todo` resource is the reference implementation (user-owned). `project` is the reference for a
-shared resource. Before writing anything, read these files and mirror their structure, annotations
+The `task` resource is the reference implementation (shared). `project` is the reference for an
+owner field with a `@PreAuthorize` owner rule. No user-owned (`createdBy`) resource exists at the moment;
+for one, follow the user-owned rules below and in `CLAUDE.md`. Before writing anything, read these files and mirror their structure, annotations
 and naming exactly:
 
-- `src/main/kotlin/io/kostack/skeleton/api/todo/` (all subpackages, especially `operation/`)
+- `src/main/kotlin/io/kostack/skeleton/api/task/` (all subpackages, especially `operation/`)
 - `src/main/kotlin/io/kostack/skeleton/db/r2dbc/` (or `db/mongodb/` for documents)
-- `src/main/kotlin/io/kostack/skeleton/fixture/r2dbc/TodoFixture.kt`
+- `src/main/kotlin/io/kostack/skeleton/fixture/r2dbc/TaskFixture.kt`
 - `src/main/resources/db/migration/` (latest migration)
-- `src/test/kotlin/io/kostack/skeleton/integration/api/todo/operation/` (integration tests)
+- `src/test/kotlin/io/kostack/skeleton/integration/api/task/operation/` (integration tests)
 
 Follow the conventions in `CLAUDE.md`. Below, `Xxx` is the singular PascalCase name, `xxx` the
 camelCase name, and `xxxs` the plural used in URLs and table names.
@@ -59,7 +60,7 @@ MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String?
 
 Add each of these only when a requested action uses it.
 
-- `operation/XxxOperation.kt`: the composed annotation for the resource (copy `TodoOperation`):
+- `operation/XxxOperation.kt`: the composed annotation for the resource (copy `TaskOperation`):
   ```kotlin
   @Target(AnnotationTarget.CLASS)
   @Retention(AnnotationRetention.RUNTIME)
@@ -83,14 +84,13 @@ Add each of these only when a requested action uses it.
   user-owned resources, load by identifier and owner, taking the user from
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User` and throwing
   `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing (never `authentication.name`).
-  See `TodoArgumentResolver`.
 - `authorization/XxxAuthorization.kt` (only for access rules beyond ownership, such as roles or
   states): `@Component("xxxAuth")` with `fun <rule>(xxx: Xxx, principal: User): Mono<Boolean> = mono { ... }`.
 
 ## 4. Operation classes `api/xxx/operation/`
 
 One class per requested action, named `<Verb>Xxx` (`ListXxx`, `GetXxx`, `CreateXxx`, `UpdateXxx`,
-`DeleteXxx`, or a custom verb such as `CompleteTodo`), and no others:
+`DeleteXxx`, or a custom verb such as `CompleteTask`), and no others:
 
 - annotated with `@XxxOperation` only
 - constructor-inject the repositories (and `GridQueryBuilder` for lists) it needs
@@ -112,9 +112,9 @@ Logic inside the handler:
   Never check first and then insert.
 - State transitions must be idempotent where it makes sense. Swallow
   `OptimisticLockingFailureException` only when a concurrent writer reaching the same state is
-  harmless (see `CompleteTodo`).
+  harmless (for example an idempotent `CompleteXxx` transition).
 - List uses `GridQueryBuilder` + `table<Xxx>("x")` and `pageable.toPageRequest(XxxListFilter::class)`
-  (see `ListTodo`). Scope it to the owner (`createdBy`) only for user-owned resources.
+  (see `ListTask`). Scope it to the owner (`createdBy`) only for user-owned resources.
 
 ## 5. Fixtures
 

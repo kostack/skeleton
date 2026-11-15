@@ -12,15 +12,14 @@ import kotlin.test.assertEquals
 
 /**
  * Fixtures:
- * - project_1 holds todo_1, todo_2 (user_1) and todo_4 (user_2)
- * - project_2 holds todo_3 (user_1) and todo_5 (user_2)
+ * - project_1 and project_3 are owned by user_1, project_2 by user_2
  * - projects are shared: every authenticated user sees all of them
  */
 class ListProjectIntegrationTest : BaseIntegrationTest() {
   private fun project(reference: Int): Project = references.getReference<Project>("project_$reference")
 
   @Test
-  fun `list returns all projects with their todo count`() =
+  fun `list returns all projects`() =
     runTest {
       clientFor(user("user-2"))
         .get()
@@ -31,10 +30,33 @@ class ListProjectIntegrationTest : BaseIntegrationTest() {
         .isOk
         .expectBody<Pagination<ProjectListResponse>>()
         .value { response ->
-          assertEquals(2, response?.total)
+          assertEquals(3, response?.total)
           assertEquals(
-            mapOf(project(1).identifier to 3L, project(2).identifier to 2L),
-            response?.content?.associate { it.identifier to it.todoCount }
+            mapOf(
+              project(1).identifier to "user-1",
+              project(2).identifier to "user-2",
+              project(3).identifier to "user-1"
+            ),
+            response?.content?.associate { it.identifier to it.ownerId }
+          )
+        }
+    }
+
+  @Test
+  fun `list filters by owner`() =
+    runTest {
+      clientFor(user("user-2"))
+        .get()
+        .uri { it.path("/api/v1/projects").queryParam("ownerId", "user-1").build() }
+        .accept(MediaType.APPLICATION_JSON)
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<Pagination<ProjectListResponse>>()
+        .value { response ->
+          assertEquals(
+            setOf(project(1).identifier, project(3).identifier),
+            response?.content?.map { it.identifier }?.toSet()
           )
         }
     }

@@ -11,10 +11,10 @@ description: Write focused integration tests for Spring Boot WebFlux endpoints (
   a single `suspend operator fun invoke` handler. There is no service layer.
 - Write one test class per operation:
   `src/test/kotlin/io/kostack/skeleton/integration/api/<resource>/operation/<Operation>IntegrationTest.kt`
-  (for example `CreateTodoIntegrationTest` for `CreateTodo`). See
-  `integration/api/todo/operation/` for the reference.
+  (for example `CreateTaskIntegrationTest` for `CreateTask`). See
+  `integration/api/task/operation/` for the reference.
 - Extend `BaseIntegrationTest`. Authenticate with `clientFor(user("user-1"))`, read fixture data with
-  `references.getReference<Todo>("todo_1")`, run parallel requests with `concurrently(n) { }`, and
+  `references.getReference<Task>("task_1")`, run parallel requests with `concurrently(n) { }`, and
   check persisted state with `@Autowired` repositories.
 - Document the fixture data the class relies on in its KDoc.
 - Operations and resolvers have no unit tests, so these tests also cover their behavior: business

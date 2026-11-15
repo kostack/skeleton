@@ -18,7 +18,14 @@ class UserProviderImplTest {
   @Test
   fun `load returns the stored user and ignores the roles claim`() =
     runTest {
-      val stored = User(id = "user-id-1", identity = "user-1", roles = listOf("ROLE_USER"))
+      val stored =
+        User(
+          id = "user-id-1",
+          identity = "user-1",
+          name = "Alice",
+          email = "user-1@example.com",
+          roles = listOf("ROLE_USER")
+        )
       coEvery { userRepository.findByIdentity("user-1") } returns stored
 
       val result = userProvider.load("user-1", mapOf("roles" to listOf("ROLE_ADMIN")))
@@ -31,11 +38,17 @@ class UserProviderImplTest {
     runTest {
       coEvery { userRepository.findByIdentity("user-9") } returns null
 
-      val result = userProvider.load("user-9", mapOf("roles" to listOf("ROLE_USER")))
+      val result =
+        userProvider.load(
+          "user-9",
+          mapOf("name" to "Nina", "email" to "user-9@example.com", "roles" to listOf("ROLE_USER"))
+        )
 
       val user = assertIs<User>(result)
       assertNull(user.id)
       assertEquals("user-9", user.identity)
+      assertEquals("Nina", user.name)
+      assertEquals("user-9@example.com", user.email)
       assertEquals(listOf("ROLE_USER"), user.roles)
     }
 

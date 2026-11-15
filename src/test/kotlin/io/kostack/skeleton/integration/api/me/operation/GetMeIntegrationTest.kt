@@ -1,33 +1,47 @@
 package io.kostack.skeleton.integration.api.me.operation
 
-import io.kostack.skeleton.db.mongodb.model.User
+import io.kostack.skeleton.api.me.response.MeResponse
 import io.kostack.skeleton.integration.BaseIntegrationTest
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.expectBody
+import kotlin.test.assertEquals
 
+/**
+ * Fixtures:
+ * - user_1 is user-1 "Alice Example" <user-1@example.com>
+ */
 class GetMeIntegrationTest : BaseIntegrationTest() {
   @Test
-  fun `me returns the current user`() =
+  fun `me returns the current user's id, name and email`() =
     runTest {
       clientFor(user("user-1"))
         .get()
-        .uri { uriBuilder ->
-          uriBuilder
-            .path("/api/v1/me")
-            .build()
-        }.accept(MediaType.APPLICATION_JSON)
+        .uri("/api/v1/me")
+        .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<User>()
+        .expectBody<MeResponse>()
         .value { response ->
-          assertEquals(
-            "user-1",
-            response?.identity
-          )
+          assertEquals(MeResponse(id = "user-1", name = "Alice Example", email = "user-1@example.com"), response)
+        }
+    }
+
+  @Test
+  fun `me exposes only id, name and email`() =
+    runTest {
+      clientFor(user("user-1"))
+        .get()
+        .uri("/api/v1/me")
+        .accept(MediaType.APPLICATION_JSON)
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<Map<String, Any?>>()
+        .value { response ->
+          assertEquals(setOf("id", "name", "email"), response?.keys)
         }
     }
 

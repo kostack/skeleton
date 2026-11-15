@@ -19,5 +19,8 @@ data class ProjectListFilter(
   @field:Schema(required = false)
   @field:Size(min = 2, max = 100)
   @field:QueryField(operator = QueryOperator.CONTAINS_IGNORE_CASE)
-  val name: String? = null
+  val name: String? = null,
+  @field:Schema(required = false, description = "Identity of the owning user")
+  @field:QueryField(operator = QueryOperator.EQ)
+  val ownerId: String? = null
 )

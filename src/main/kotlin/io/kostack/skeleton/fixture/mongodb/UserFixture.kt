@@ -12,17 +12,17 @@ class UserFixture(
   private val userRepository: UserRepository
 ) : AbstractFixture() {
   override suspend fun load() {
-    fixture1()
-    fixture2()
+    createUser(1, "Alice Example")
+    createUser(2, "Bob Example")
+    createUser(3, "Carol Example")
   }
 
-  suspend fun fixture1() {
-    val user = User(identity = "user-1", roles = listOf("ROLE_USER"))
-    this.referenceRepository.setReference("user_1", userRepository.save(user))
-  }
-
-  suspend fun fixture2() {
-    val user = User(identity = "user-2", roles = listOf("ROLE_USER"))
-    this.referenceRepository.setReference("user_2", userRepository.save(user))
+  suspend fun createUser(
+    idx: Int,
+    name: String
+  ) {
+    val user =
+      User(identity = "user-$idx", name = name, email = "user-$idx@example.com", roles = listOf("ROLE_USER"))
+    this.referenceRepository.setReference("user_$idx", userRepository.save(user))
   }
 }

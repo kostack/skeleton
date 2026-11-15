@@ -1,13 +1,23 @@
 package io.kostack.skeleton.api.project.response
 
-import io.kostack.skeleton.api.todo.response.toResponse
+import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Project
-import io.kostack.skeleton.db.r2dbc.model.Todo
+import io.kostack.skeleton.db.r2dbc.model.Task
 
-fun Project.toResponse(todos: List<Todo> = emptyList()): ProjectResponse =
+fun Project.toResponse(
+  owner: User,
+  featuredTask: Task?
+): ProjectResponse =
   ProjectResponse(
     identifier = identifier,
     name = name,
-    createdAt = createdAt,
-    todos = todos.map { it.toResponse() }
+    description = description,
+    owner = owner.toOwnerResponse(),
+    featuredTask = featuredTask?.toFeaturedTaskResponse(),
+    createdAt = createdAt
   )
+
+fun User.toOwnerResponse(): ProjectOwnerResponse = ProjectOwnerResponse(id = identity, name = name)
+
+fun Task.toFeaturedTaskResponse(): ProjectFeaturedTaskResponse =
+  ProjectFeaturedTaskResponse(identifier = identifier, title = title, status = status)

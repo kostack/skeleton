@@ -7,7 +7,6 @@ import io.github.kostack.database_tools.r2dbc.grid.dsl.table
 import io.kostack.skeleton.api.project.filter.ProjectListFilter
 import io.kostack.skeleton.api.project.response.ProjectListResponse
 import io.kostack.skeleton.db.r2dbc.model.Project
-import io.kostack.skeleton.db.r2dbc.model.Todo
 import io.swagger.v3.oas.annotations.Operation
 import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
@@ -21,7 +20,7 @@ class ListProject(
 ) {
   @Operation(
     operationId = "project_list_action",
-    summary = "List all projects with their todo count"
+    summary = "List projects, optionally filtered by owner"
   )
   @GetMapping(version = "1+", produces = [MediaType.APPLICATION_JSON_VALUE])
   suspend operator fun invoke(
@@ -29,12 +28,8 @@ class ListProject(
     @Valid @ParameterObject filter: ProjectListFilter
   ): Pagination<ProjectListResponse> {
     val pageRequest = pageable.toPageRequest(ProjectListFilter::class)
-    val project = table<Project>("p")
-    val todo = table<Todo>("t")
     return queryBuilder
-      .from(project)
-      .aggregateJoin(todo)
-      .on(project[Project::id] eq todo[Todo::projectId])
+      .from(table<Project>("p"))
       .fetchPage<ProjectListResponse>(filter, pageRequest)
   }
 }
