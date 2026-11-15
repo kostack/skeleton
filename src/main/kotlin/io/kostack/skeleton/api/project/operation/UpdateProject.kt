@@ -43,12 +43,12 @@ class UpdateProject(
     val featuredTaskId =
       when (val selection = command.featuredTaskId) {
         null -> project.featuredTaskId
-        else -> featuredTaskId(project, selection.orElse(null))
+        else -> featuredTaskId(project, selection)
       }
     val updated =
       project.copy(
-        name = command.name ?: project.name,
-        description = command.description ?: project.description,
+        name = command.name,
+        description = command.description,
         featuredTaskId = featuredTaskId
       )
     if (updated == project) {
@@ -61,7 +61,6 @@ class UpdateProject(
     }
   }
 
-  /** The internal id of [taskIdentifier], which must be one of [project]'s own tasks; null clears the selection. */
   private suspend fun featuredTaskId(
     project: Project,
     taskIdentifier: String?

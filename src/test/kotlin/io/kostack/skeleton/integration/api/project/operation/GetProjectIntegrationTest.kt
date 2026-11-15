@@ -1,7 +1,6 @@
 package io.kostack.skeleton.integration.api.project.operation
 
 import io.kostack.skeleton.api.project.response.ProjectFeaturedTaskResponse
-import io.kostack.skeleton.api.project.response.ProjectOwnerResponse
 import io.kostack.skeleton.api.project.response.ProjectResponse
 import io.kostack.skeleton.db.r2dbc.model.Project
 import io.kostack.skeleton.db.r2dbc.model.Task

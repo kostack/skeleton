@@ -1,7 +1,6 @@
 package io.kostack.skeleton.integration.api.project.operation
 
 import io.github.kostack.spring_tools.dto.ApiValidation
-import io.kostack.skeleton.api.project.response.ProjectOwnerResponse
 import io.kostack.skeleton.api.project.response.ProjectResponse
 import io.kostack.skeleton.db.mongodb.repository.UserRepository
 import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository

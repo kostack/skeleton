@@ -6,7 +6,6 @@ data class ProjectResponse(
   val identifier: String,
   val name: String,
   val description: String?,
-  val owner: ProjectOwnerResponse,
   val featuredTask: ProjectFeaturedTaskResponse?,
   val createdAt: Instant
 )
