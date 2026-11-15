@@ -245,6 +245,7 @@ For local development, generate a token with the `generate-token` shell command 
 | `GET /api/v1/projects` | Returns paginated projects; filter by `ownerId` and `name`, sort by `name` or `createdAt` | Any authenticated user |
 | `GET /api/v1/projects/{projectId}` | Returns a project with an owner summary (`id`, `name`) and its optional featured task summary | Any authenticated user |
 | `PUT /api/v1/projects/{projectId}` | Replaces `name` (required) and `description` (omitted clears it); `featuredTaskId` selects one of the project's own tasks (omitted or `null` clears it); returns `204` | Owner only (`403` otherwise) |
+| `DELETE /api/v1/projects/{projectId}` | Deletes the project and all its tasks in one transaction; returns `204` | Owner only (`403` otherwise) |
 | `POST /api/v1/tasks` | Creates a `TODO` task from `projectId`, `title` and optional `assigneeId` (an existing user); returns `201` | Any authenticated user |
 | `GET /api/v1/tasks` | Returns paginated tasks of the required `projectId`; optional `assigneeId` and `status` filters are ANDed; sort by `title`, `status` or `createdAt` | Any authenticated user |
 | `GET /api/v1/tasks/{taskId}` | Returns a task with its `projectId` and optional assignee summary (`id`, `name`) | Any authenticated user |

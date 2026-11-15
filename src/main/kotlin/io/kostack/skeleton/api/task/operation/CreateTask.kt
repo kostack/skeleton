@@ -11,6 +11,7 @@ import io.kostack.skeleton.db.r2dbc.repository.ProjectRepository
 import io.kostack.skeleton.db.r2dbc.repository.TaskRepository
 import io.swagger.v3.oas.annotations.Operation
 import jakarta.validation.Valid
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
@@ -49,13 +50,20 @@ class CreateTask(
           )
       }
     val task =
-      taskRepository.save(
-        Task(
-          projectId = requireNotNull(project.id),
-          title = command.title,
-          assigneeId = assignee?.identity
+      try {
+        taskRepository.save(
+          Task(
+            projectId = requireNotNull(project.id),
+            title = command.title,
+            assigneeId = assignee?.identity
+          )
         )
-      )
+      } catch (_: DataIntegrityViolationException) {
+        // The project was deleted after it was loaded: the foreign key rejects the task
+        throw ValidationException(
+          listOf(ApiValidation.Violation(fieldId = "projectId", message = "Project does not exist"))
+        )
+      }
     return task.toResponse(project = project, assignee = assignee)
   }
 }

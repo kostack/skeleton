@@ -81,6 +81,18 @@ class ListTaskIntegrationTest : BaseIntegrationTest() {
     }
 
   @Test
+  fun `list of an unknown project returns 404`() =
+    runTest {
+      clientFor(user("user-1"))
+        .get()
+        .uri { it.path("/api/v1/tasks").queryParam("projectId", "does-not-exist").build() }
+        .accept(MediaType.APPLICATION_JSON)
+        .exchange()
+        .expectStatus()
+        .isNotFound
+    }
+
+  @Test
   fun `list without projectId returns 400`() =
     runTest {
       clientFor(user("user-1"))

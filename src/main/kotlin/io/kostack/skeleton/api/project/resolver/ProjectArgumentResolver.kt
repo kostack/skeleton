@@ -9,6 +9,7 @@ import org.springframework.core.MethodParameter
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.BindingContext
+import org.springframework.web.reactive.HandlerMapping
 import org.springframework.web.reactive.result.method.HandlerMethodArgumentResolver
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
@@ -29,7 +30,12 @@ class ProjectArgumentResolver(
     exchange: ServerWebExchange
   ): Mono<Any> =
     mono {
-      val identifier = getPathParameter<String>("projectId", exchange)
+      // A path variable on /projects/{projectId}, a query parameter on /tasks?projectId=...
+      val identifier =
+        exchange
+          .getAttribute<Map<String, String>>(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)
+          ?.get("projectId")
+          ?: getRequestParameter("projectId", exchange)
       return@mono projectRepository.findByIdentifier(identifier) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     }
 }
