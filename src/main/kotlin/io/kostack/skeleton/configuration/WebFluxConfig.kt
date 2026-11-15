@@ -1,6 +1,5 @@
 package io.kostack.skeleton.configuration
 
-import io.kostack.skeleton.controller.todo.resolver.TodoArgumentResolver
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.web.ReactivePageableHandlerMethodArgumentResolver
 import org.springframework.web.reactive.config.ApiVersionConfigurer
@@ -8,9 +7,7 @@ import org.springframework.web.reactive.config.WebFluxConfigurer
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer
 
 @Configuration
-class WebFluxConfig(
-  private val todoArgumentResolver: TodoArgumentResolver
-) : WebFluxConfigurer {
+class WebFluxConfig : WebFluxConfigurer {
   companion object {
     const val API_PATH_PREFIX = "/api/"
 
@@ -20,7 +17,6 @@ class WebFluxConfig(
 
   override fun configureArgumentResolvers(configurer: ArgumentResolverConfigurer) {
     configurer.addCustomResolver(ReactivePageableHandlerMethodArgumentResolver())
-    configurer.addCustomResolver(todoArgumentResolver)
   }
 
   override fun configureApiVersioning(configurer: ApiVersionConfigurer) {

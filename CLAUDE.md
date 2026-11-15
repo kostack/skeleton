@@ -15,14 +15,16 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 ## Layout
 
 ```
-controller/<resource>/
+api/<resource>/
   operation/                    <Resource>Operation (composed annotation) + one class per endpoint:
                                 List<Resource>, Get<Resource>, Create<Resource>, Complete<Resource>, ...
   command/                      <Resource>CreateCommand, ... (request bodies with jakarta validation)
   response/                     <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
   filter/                       <Resource>ListFilter (query/sort definition for list endpoints)
-  resolver/                     <Resource>ArgumentResolver (loads path entities)
+  resolver/                     <Resource>ArgumentResolver (loads path entities; a @Component,
+                                registered automatically, never in WebFluxConfig)
   authorization/                <Resource>Authorization (@Component("<resource>Auth"))
+service/<resource>/             <Resource>Service + <Resource>ServiceImpl, only when needed (see below)
 db/r2dbc/{model,repository}     MySQL entities (@Table) and CoroutineCrudRepository
 db/mongodb/{model,repository}   Mongo documents (@Document) and CoroutineCrudRepository
 fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
@@ -32,10 +34,20 @@ resources/db/migration          Flyway: V<n>__<description>.sql
 Reference implementation for everything: the `todo` resource. When in doubt, copy its shape.
 `project` is the reference for a shared (not user-owned) resource.
 
-There is no service layer. Each operation class is the use case: it handles one endpoint and reads and
-writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and fixtures use
-repositories too. Don't add `service/` classes back. If several operations need the same non-trivial
-logic, ask before introducing a shared component.
+By default there is no service layer. Each operation class is the use case: it handles one endpoint
+and reads and writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and
+fixtures use repositories too.
+
+Add a service only when the logic is needed outside an API operation, for example from a stream
+consumer (`cloud/stream/`) or a shell command (`shell/`):
+- Move the logic into `service/<resource>/<Resource>Service` (interface) and
+  `<Resource>ServiceImpl` (`@Service`). Its methods take plain parameters, not request commands or
+  HTTP types.
+- The operation then delegates to the service too, so the logic exists in one place. It keeps only
+  HTTP concerns (binding, status codes, the response mapping).
+- Add only the methods the non-API caller needs. Don't create services in advance or "for
+  consistency".
+- Services are outside `api/`, so they get unit tests.
 
 ## Kotlin style
 
@@ -49,7 +61,7 @@ logic, ask before introducing a shared component.
 
 ## API conventions
 
-- Each resource has a composed annotation `controller/<resource>/operation/<Resource>Operation.kt`
+- Each resource has a composed annotation `api/<resource>/operation/<Resource>Operation.kt`
   carrying `@RestController`, `@RequestMapping("/api/{version}/<plural>")` and `@Tag`. Every
   operation class in that package is annotated with it and has exactly one handler:
   `suspend operator fun invoke(...)` with the mapping annotation. Exception: `MeOperation` maps
@@ -102,23 +114,23 @@ logic, ask before introducing a shared component.
 ## Tests
 
 - Operations are tested through HTTP only, with one integration test class per operation:
-  `integration/controller/<resource>/operation/<Operation>IntegrationTest.kt` (for example
+  `integration/api/<resource>/operation/<Operation>IntegrationTest.kt` (for example
   `CreateTodoIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
   `references`, `concurrently { }`) and cover the operation's business rules too. Use the
   `spring-controller-integration-tests` skill.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
-  In `controller/`, only authorization classes get unit tests; operations and resolvers are covered by
-  the integration tests. Outside `controller/`, unit test classes with their own logic (`security/`).
+  In `api/`, only authorization classes get unit tests; operations and resolvers are covered by
+  the integration tests. Outside `api/`, unit test classes with their own logic (`security/`).
 - Test names are backtick sentences: `` `list returns only the current user's todos` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc.
 
 ## Enforcement
 
-- `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` from the kostack
+- `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` (with `apiPackage = "api"`) from the kostack
   `service-conventions` library (Konsist, runs in `./gradlew test`) and enforces: controllers
-  (including classes with a composed `@RestController` annotation) live in `controller/`; operation
-  classes in `controller..operation` have a `suspend operator fun invoke` handler, other controllers
+  (including classes with a composed `@RestController` annotation) live in `api/`; operation
+  classes in `api..operation` have a `suspend operator fun invoke` handler, other controllers
   are `*Controller` with `suspend fun *Action`; `version` on every mapping; the operationId pattern;
   no repositories in classic controllers (operations may use them); coroutine repositories; no
   blocking or JDBC/JPA outside `configuration/`; and migration file names.

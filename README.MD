@@ -309,9 +309,9 @@ The command sends a message with `StreamBridge` through the `demo-out` binding t
 
 ## How to run tests and quality checks
 
-Integration tests start their own MySQL, MongoDB, and RabbitMQ with [Testcontainers](https://testcontainers.com), so they need a running Docker daemon but never touch the shared local services. `src/test/kotlin/io/kostack/skeleton/integration/TestcontainersConfiguration.kt` defines the containers; `@ServiceConnection` replaces the R2DBC, Flyway, MongoDB, and RabbitMQ connection settings from `docker/.env`. The other variables, such as the JWT keys, still come from `docker/.env`. The containers start once per cached Spring context and are removed when the test JVM exits. Controller integration tests clear application tables and load fixtures in these containers.
+Integration tests start their own MySQL, MongoDB, and RabbitMQ with [Testcontainers](https://testcontainers.com), so they need a running Docker daemon but never touch the shared local services. `src/test/kotlin/io/kostack/skeleton/integration/TestcontainersConfiguration.kt` defines the containers; `@ServiceConnection` replaces the R2DBC, Flyway, MongoDB, and RabbitMQ connection settings from `docker/.env`. The other variables, such as the JWT keys, still come from `docker/.env`. The containers start once per cached Spring context and are removed when the test JVM exits. Integration tests clear application tables and load fixtures in these containers.
 
-Controller integration tests extend `BaseControllerIntegrationTest`. It provides `clientFor(user)` for authenticated requests, `user(identity)` for fixture users, and `concurrently(times) { ... }`, which sends the same request in parallel (8 times by default) and returns the results in order. Use `concurrently` to test race conditions, such as duplicate creates or concurrent updates.
+Integration tests extend `BaseIntegrationTest`. It provides `clientFor(user)` for authenticated requests, `user(identity)` for fixture users, and `concurrently(times) { ... }`, which sends the same request in parallel (8 times by default) and returns the results in order. Use `concurrently` to test race conditions, such as duplicate creates or concurrent updates.
 
 Tests always run with the `test` profile (which also includes `cloud-consumer`), whatever `springProfile` or `SPRING_PROFILES_ACTIVE` is set to; the fixtures they load exist only with the `test` and `shell` profiles. Gradle loads `docker/.env.test` if it exists, otherwise `docker/.env`.
 
@@ -394,13 +394,13 @@ docker compose --env-file docker/.env -f docker/prod-compose.yml up
 
 ```text
 src/main/kotlin/io/kostack/skeleton/
+├── api/                REST operations (one class per endpoint), commands and DTOs
 ├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
-├── command/            Spring Shell commands
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
-├── controller/         REST operations (one class per endpoint), commands and DTOs
 ├── db/                 MongoDB (users) and R2DBC/MySQL (todos) models and repositories
 ├── fixture/            Development and test data fixtures
-└── security/           Authorization rules and audit support
+├── security/           Authorization rules and audit support
+└── shell/              Spring Shell commands
 
 src/main/resources/
 ├── db/migration/       Flyway SQL migrations
@@ -410,7 +410,7 @@ src/main/resources/
 ## How to extend the skeleton
 
 1. Rename the project and package from `skeleton` to your service name.
-2. Replace the example `Todo` domain, fixtures, controllers, and tests.
+2. Replace the example `Todo` domain, fixtures, operations, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
 4. Replace all embedded development credentials with external configuration.
 5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.

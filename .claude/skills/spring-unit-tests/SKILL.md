@@ -7,11 +7,12 @@ description: Write focused unit tests for Kotlin and Java Spring Boot applicatio
 
 ## In this repository
 
-- In `controller/`, only authorization classes (`controller/<resource>/authorization/`) get unit
+- In `api/`, only authorization classes (`api/<resource>/authorization/`) get unit
   tests. Operations, resolvers, commands, filters and responses are covered by integration tests;
   use the `spring-controller-integration-tests` skill for them. If asked to unit test one of those,
   say so and ask before writing it.
-- Outside `controller/`, unit test classes with their own logic, such as `security/` classes.
+- Outside `api/`, unit test classes with their own logic, such as `service/` and `security/`
+  classes.
 - Test classes mirror the main package: `src/test/kotlin/io/kostack/skeleton/<same package>/<Class>Test.kt`.
 - Tools: JUnit 5, MockK (`mockk`, `coEvery`, `coVerify`), `runTest`, and `StepVerifier` or
   `kotlinx.coroutines.reactor` helpers for `Mono` results.

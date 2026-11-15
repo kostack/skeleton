@@ -9,17 +9,18 @@ The `todo` resource is the reference implementation (user-owned). `project` is t
 shared resource. Before writing anything, read these files and mirror their structure, annotations
 and naming exactly:
 
-- `src/main/kotlin/io/kostack/skeleton/controller/todo/` (all subpackages, especially `operation/`)
+- `src/main/kotlin/io/kostack/skeleton/api/todo/` (all subpackages, especially `operation/`)
 - `src/main/kotlin/io/kostack/skeleton/db/r2dbc/` (or `db/mongodb/` for documents)
 - `src/main/kotlin/io/kostack/skeleton/fixture/r2dbc/TodoFixture.kt`
 - `src/main/resources/db/migration/` (latest migration)
-- `src/test/kotlin/io/kostack/skeleton/integration/controller/todo/operation/` (integration tests)
+- `src/test/kotlin/io/kostack/skeleton/integration/api/todo/operation/` (integration tests)
 
 Follow the conventions in `CLAUDE.md`. Below, `Xxx` is the singular PascalCase name, `xxx` the
 camelCase name, and `xxxs` the plural used in URLs and table names.
 
-There is no service layer: operation classes, resolvers and fixtures use repositories directly.
-Never create `service/` classes.
+Operation classes, resolvers and fixtures use repositories directly. Don't create `service/` classes
+when scaffolding a resource: a service is added later, only when logic is needed outside an API
+operation (see `CLAUDE.md`).
 
 ## 1. Clarify
 
@@ -54,7 +55,7 @@ R2DBC:
 MongoDB: a `@Document("xxxs")` class in `db/mongodb/model` with `@Id id: String? = null`, unique fields
 `@Indexed(unique = true)`, and `@Version`. The repository is `CoroutineCrudRepository<Xxx, String>`.
 
-## 3. Package `controller/xxx/`
+## 3. Package `api/xxx/`
 
 Add each of these only when a requested action uses it.
 
@@ -76,7 +77,8 @@ Add each of these only when a requested action uses it.
   For a list endpoint that uses `GridQueryBuilder`, add a lean `response/XxxListResponse.kt` projection.
 - `filter/XxxListFilter.kt`: `@SortableDefaults`, one `@Sortable` per sortable field, and
   `@QueryField` plus `@field:Schema(required = false)` on optional filter fields.
-- `resolver/XxxArgumentResolver.kt`: reads the `xxxId` path parameter, loads through the repository
+- `resolver/XxxArgumentResolver.kt`: a `@Component` (Spring registers it automatically; never add it to
+  `WebFluxConfig`) that reads the `xxxId` path parameter, loads through the repository
   and throws `ResponseStatusException(HttpStatus.NOT_FOUND)` when the entity is missing. For
   user-owned resources, load by identifier and owner, taking the user from
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User` and throwing
@@ -85,7 +87,7 @@ Add each of these only when a requested action uses it.
 - `authorization/XxxAuthorization.kt` (only for access rules beyond ownership, such as roles or
   states): `@Component("xxxAuth")` with `fun <rule>(xxx: Xxx, principal: User): Mono<Boolean> = mono { ... }`.
 
-## 4. Operation classes `controller/xxx/operation/`
+## 4. Operation classes `api/xxx/operation/`
 
 One class per requested action, named `<Verb>Xxx` (`ListXxx`, `GetXxx`, `CreateXxx`, `UpdateXxx`,
 `DeleteXxx`, or a custom verb such as `CompleteTodo`), and no others:
@@ -123,13 +125,13 @@ Logic inside the handler:
 ## 6. Tests
 
 - Operations are tested through HTTP only: one
-  `integration/controller/xxx/operation/<Verb>XxxIntegrationTest.kt` per operation, extending
+  `integration/api/xxx/operation/<Verb>XxxIntegrationTest.kt` per operation, extending
   `BaseIntegrationTest`. Follow the `spring-controller-integration-tests` skill. Document the fixture
   data in the class KDoc. Cover the operation's business rules there (validation, duplicates,
   idempotent transitions, concurrency where it matters). For user-owned resources, test that another
   user's entity returns 404.
 - Unit tests only for `XxxAuthorization`, if it exists: follow the `spring-unit-tests` skill. Don't
-  write unit tests for operations, resolvers or other classes in `controller/xxx/`; the integration
+  write unit tests for operations, resolvers or other classes in `api/xxx/`; the integration
   tests cover them (the resolver through its 404 cases).
 
 ## 7. Verify
@@ -148,6 +150,6 @@ Logic inside the handler:
 - [ ] Path endpoints load their entity with `@ResolvedArgument`; user-owned ones resolve by owner (404)
 - [ ] Uniqueness is enforced by the database and mapped to `ValidationException`
 - [ ] A new migration exists, and no existing migration was edited
-- [ ] No `service/` classes; no blocking calls (`.block()`, JDBC, `Thread.sleep`)
+- [ ] No `service/` classes in the scaffold; no blocking calls (`.block()`, JDBC, `Thread.sleep`)
 - [ ] Only the requested actions exist, with no extra operations, repository methods or DTOs
 - [ ] Fixture and one integration test class per operation are added (unit tests only for authorization rules)
