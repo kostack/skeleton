@@ -1,4 +1,4 @@
-# Skeleton Service – agent guide
+# Agent guide
 
 Kotlin + Spring Boot (WebFlux, coroutines) service. Package root: `io.kostack.skeleton`.
 README.MD has setup, profiles, and Docker details; this file holds the coding conventions.
@@ -31,9 +31,11 @@ fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
 resources/db/migration          Flyway: V<n>__<description>.sql
 ```
 
-Reference implementation for everything: the `task` resource (shared, not user-owned). When in doubt,
-copy its shape. `project` adds an owner field and a `@PreAuthorize` owner rule (`ProjectAuthorization`).
-No user-owned (`createdBy`) resource exists at the moment; follow the ownership rules below for one.
+Reference implementations: `task` (shared; a parent reference, a user reference, PUT replacement,
+a list filtered through a joined table) and `project` (an owner set from the principal, an
+owner-scoped list, a `@PreAuthorize` owner rule, an optional 1:1 reference, an aggregate count in the
+list). When in doubt, copy their shape. No creator-private (`createdBy`) resource exists at the
+moment; follow the ownership rules below for one.
 
 By default there is no service layer. Each operation class is the use case: it handles one endpoint
 and reads and writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and
@@ -77,38 +79,62 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 - Declare `produces`/`consumes = [MediaType.APPLICATION_JSON_VALUE]` explicitly.
 - Status codes: create → `@ResponseStatus(HttpStatus.CREATED)`; update or delete without a body →
   `@ResponseStatus(HttpStatus.NO_CONTENT)`.
+- Updates are `@PutMapping` replacements: every field comes from the command. Required fields are
+  non-null in the command (missing → 400); an omitted or `null` optional field or reference clears it.
+  Skip the save when nothing changed, and turn `OptimisticLockingFailureException` into
+  `ResponseStatusException(HttpStatus.CONFLICT)`. Updating a reference changes only the entity being
+  updated.
 - Path entities: take `@PathVariable <resource>Id: String` plus
   `@Parameter(hidden = true) @ResolvedArgument entity: Entity`. The resolver returns 404 through
   `ResponseStatusException(HttpStatus.NOT_FOUND)`. Operations never load their path entity themselves.
-- Ownership: for user-owned resources the resolver loads by identifier and owner
-  (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
-  their existence isn't revealed. In the resolver, get the user with
+- Ownership comes in two forms; ask which one a new resource needs:
+  - Creator-private (`createdBy`): the resolver loads by identifier and owner
+    (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
+    their existence isn't revealed.
+  - Owner field with an owner rule (like `project`): `ownerId` is set from the principal and never
+    accepted from the client; handlers restricted to the owner use
+    `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`, so other users
+    get 403; the list is scoped with `.where(x[Xxx::ownerId] eq principal.identity)`.
+  In a resolver, get the user with
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User`, and throw
   `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing.
   Never use `authentication.name`; it isn't the identity.
-- Further access rules (roles, states) go on the handler as
+- Other access rules (roles, states) go on the handler as
   `@PreAuthorize("@<resource>Auth.<rule>(#entity, authentication.principal)")`.
 - Get the current user in a handler with `@AuthenticationPrincipal user: User` (the Mongo `User`).
 - Response DTOs are optional. Returning an entity directly is fine; hide internal fields with
   `@JsonIgnore`. If the API shape should differ from the entity,
   add DTOs and map them with `fun Entity.toResponse()` extensions in `response/ResponseExtensions.kt`.
+  Related entities appear as small summary DTOs (`ProjectFeaturedTaskResponse`,
+  `TaskAssigneeResponse`). A user summary holds only `id` (the identity) and `name`; email is exposed
+  only through `GET /me`.
 - Request bodies are commands (`command/<Resource>CreateCommand`), validated with `@Valid` and
   `@field:` constraints. Report business validation errors as
   `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
+- References in commands and responses are public ids: the related entity's `identifier`, or a
+  user's `identity`. Load the related entity and report a missing or unsuitable one as a
+  `ValidationException` on that field.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
   and return `Pagination<<Resource>ListResponse>`, built in the operation with `GridQueryBuilder`
-  (see `ListTask`).
+  (see `ListTask`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
+  columns, and `.aggregateJoin(...)` with `@SelectAggregate`/`@QueryField(aggregate = ...)` for counts
+  (see `ListProject`).
 
 ## Persistence
 
 - Public IDs: expose a UUID string `identifier`, never the numeric `id` (R2DBC) or the Mongo `_id`.
-- R2DBC entities have `@Id id: Long?`, `@CreatedDate createdAt`, `@LastModifiedDate lastModifiedAt`
-  (`Instant`), and `@Version version: Long?` for optimistic locking. Only user-owned entities have
-  `createdBy: String` (the user's identity); shared entities don't.
+- R2DBC entities have `@Id id: Long?`, `identifier: String = UUID.randomUUID().toString()`,
+  `@CreatedDate createdAt`, `@LastModifiedDate lastModifiedAt` (`Instant`), and `@Version version: Long?`
+  for optimistic locking. Only creator-private entities have `createdBy: String` (the user's
+  identity).
+- Entity enums live in `db/r2dbc/enums/` and are stored by name in a `VARCHAR` column.
+- References store the internal `Long` id of another R2DBC entity (with a foreign key), or a user's
+  `identity` string (MongoDB, no foreign key).
 - Let unique constraints in the database enforce uniqueness. Catch `DuplicateKeyException` and turn
   it into a `ValidationException`. Do not check first and then insert.
 - Migrations: add a new `V<n+1>__...sql`. Never edit a migration that has already been applied.
-  Name constraints `uk_<table>_<cols>` and indexes `idx_<table>_<cols>`. Use `DATETIME(6)` for
+  Name constraints `uk_<table>_<cols>`, foreign keys `fk_<table>_<col>` and indexes
+  `idx_<table>_<cols>`. Use `DATETIME(6)` for
   timestamps.
 - All time is UTC.
 
@@ -118,13 +144,17 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   `integration/api/<resource>/operation/<Operation>IntegrationTest.kt` (for example
   `CreateTaskIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
   `references`, `concurrently { }`) and cover the operation's business rules too. Use the
-  `spring-controller-integration-tests` skill.
+  `spring-controller-integration-tests` skill. Reference tests: `integration/api/task/operation/`
+  and `integration/api/project/operation/` (`ListTaskIntegrationTest` shows a `list(...)` helper for
+  filter tests).
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
   In `api/`, only authorization classes get unit tests; operations and resolvers are covered by
   the integration tests. Outside `api/`, unit test classes with their own logic (`security/`).
 - Test names are backtick sentences: `` `list combines filters with AND` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
-  class relies on in its KDoc.
+  class relies on in its KDoc. References can't be replaced (`setReference` throws): a fixture that
+  updates an entity later saves it without re-setting the reference, and tests read such fields from
+  the repository.
 
 ## Enforcement
 

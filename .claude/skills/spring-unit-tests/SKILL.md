@@ -5,7 +5,10 @@ description: Write focused unit tests for Kotlin and Java Spring Boot applicatio
 
 # Unit tests
 
-## In this repository
+## Project conventions
+
+Read the project's `CLAUDE.md` first; where it disagrees with this skill, `CLAUDE.md` wins. The
+defaults below apply to services that use operation classes in `api/`:
 
 - In `api/`, only authorization classes (`api/<resource>/authorization/`) get unit
   tests. Operations, resolvers, commands, filters and responses are covered by integration tests;
@@ -13,8 +16,8 @@ description: Write focused unit tests for Kotlin and Java Spring Boot applicatio
   say so and ask before writing it.
 - Outside `api/`, unit test classes with their own logic, such as `service/` and `security/`
   classes.
-- Test classes mirror the main package: `src/test/kotlin/io/kostack/skeleton/<same package>/<Class>Test.kt`.
-- Tools: JUnit 5, MockK (`mockk`, `coEvery`, `coVerify`), `runTest`, and `StepVerifier` or
+- Test classes mirror the main package: `src/test/kotlin/<same package path>/<Class>Test.kt`.
+- Tools (unless `CLAUDE.md` names others): JUnit 5, MockK (`mockk`, `coEvery`, `coVerify`), `runTest`, and `StepVerifier` or
   `kotlinx.coroutines.reactor` helpers for `Mono` results.
 
 ## Workflow

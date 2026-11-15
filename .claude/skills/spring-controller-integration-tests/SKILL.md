@@ -5,22 +5,34 @@ description: Write focused integration tests for Spring Boot WebFlux endpoints (
 
 # Endpoint integration tests
 
-## In this repository
+## Project conventions
 
-- Endpoints are operation classes: one class per endpoint in `api/<resource>/operation/`, with
-  a single `suspend operator fun invoke` handler. There is no service layer.
-- Write one test class per operation:
-  `src/test/kotlin/io/kostack/skeleton/integration/api/<resource>/operation/<Operation>IntegrationTest.kt`
-  (for example `CreateTaskIntegrationTest` for `CreateTask`). See
-  `integration/api/task/operation/` for the reference.
-- Extend `BaseIntegrationTest`. Authenticate with `clientFor(user("user-1"))`, read fixture data with
-  `references.getReference<Task>("task_1")`, run parallel requests with `concurrently(n) { }`, and
-  check persisted state with `@Autowired` repositories.
+Read the project's `CLAUDE.md` first: it names the integration test package, the base test class and
+its helpers (authentication, fixture references, concurrent requests), and the reference tests to
+copy. Where this skill and `CLAUDE.md` disagree, `CLAUDE.md` wins.
+
+- When endpoints are operation classes (one class per endpoint with a single
+  `suspend operator fun invoke` handler), write one test class per operation:
+  `<Operation>IntegrationTest` (for example `CreateXxxIntegrationTest` for `CreateXxx`), mirroring the
+  operation's package under the integration test package.
+- Extend the project's base integration test class, authenticate through its helpers, read fixture
+  data through its fixture references, and check persisted state with `@Autowired` repositories.
 - Document the fixture data the class relies on in its KDoc.
-- Operations and resolvers have no unit tests, so these tests also cover their behavior: business
+- When operations and resolvers have no unit tests, these tests also cover their behavior: business
   rules (validation, duplicate handling, idempotent transitions, concurrency where it matters) and
-  path-entity resolution (unknown and other users' entities return 404).
-- User-owned resources resolve only for their owner: another user's entity returns 404, not 403.
+  path-entity resolution (unknown entities return 404).
+- Access rules: a creator-private resource resolves only for its owner, so another user's entity
+  returns 404. A `@PreAuthorize` owner rule returns 403. An owner-scoped list must not return other
+  users' entities, including through its filters.
+- Fixture references are snapshots taken when the fixture stored them. When a fixture updates an
+  entity after storing its reference, read that field from the repository instead of the reference.
+- PUT updates replace the resource: send every required field in each request, and test that an
+  omitted or `null` optional field or reference is cleared. Test the omitted and the explicit `null`
+  cases separately; a raw JSON string (`"""{"field": null}"""`) makes the explicit `null` obvious.
+- Related ids in request bodies: test that an unknown id returns 400 with a violation on that
+  `fieldId`, and that nothing was persisted.
+- For list endpoints with several filters, a small `list(vararg params)` helper keeps each test
+  focused on its query. Test each filter alone and combined.
 
 ## Workflow
 
