@@ -25,11 +25,7 @@ class TodoServiceImpl(
 ) : TodoService {
   override suspend fun save(todo: Todo): Todo = todoRepository.save(todo)
 
-  override suspend fun findById(id: String): Todo? = todoRepository.findById(id)
-
   override suspend fun findByIdentifier(identifier: String): Todo? = todoRepository.findByIdentifier(identifier)
-
-  override suspend fun findByTitle(title: String): Todo? = todoRepository.findByTitle(title)
 
   override suspend fun create(
     todoRequest: TodoCreateRequest,

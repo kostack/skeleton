@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class UserProviderImplTest {
   private val userRepository = mockk<UserRepository>()
@@ -33,6 +34,7 @@ class UserProviderImplTest {
       val result = userProvider.load("user-9", mapOf("roles" to listOf("ROLE_USER")))
 
       val user = assertIs<User>(result)
+      assertNull(user.id)
       assertEquals("user-9", user.identity)
       assertEquals(listOf("ROLE_USER"), user.roles)
     }

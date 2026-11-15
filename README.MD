@@ -112,6 +112,10 @@ Flyway applies migrations from `src/main/resources/db/migration` when the applic
 
 Users are stored in MongoDB (`users` collection). Todos are stored in MySQL (`todos` table) and accessed through R2DBC. A todo's `created_by` holds the user's identity, so it is not a database foreign key.
 
+MySQL `DATETIME` columns store no time zone, so the application stores all timestamps in UTC. `main()` in `Application.kt` sets the JVM's default time zone to UTC, and the `test` task in `build.gradle.kts` does the same for tests, which do not call `main()`. Keep both if you change how the application starts.
+
+R2DBC auditing (`R2dbcConfig`) sets `@CreatedDate` fields when an entity is inserted and `@LastModifiedDate` fields on every save, truncated to the microseconds that `DATETIME(6)` stores. Only saves through repositories or `R2dbcEntityTemplate` are audited; writes through `DatabaseClient` or `@Query` updates are not.
+
 ### How to generate JWT keys
 
 Create a local RSA key pair in a temporary directory outside the project:
@@ -231,7 +235,7 @@ Tokens must use the audience `kostack`, the `RS512` signature algorithm, and one
 | `local` | `JWT_PUBLIC_KEY`; this is also the issuer the service signs its own tokens with |
 | `user-service.local` | The JWKS at `USER_SERVICE_JWKS_URI` (default `http://user-service.local/.well-known/jwks.json`) |
 
-For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity or creates an in-memory user when no database record exists; roles come from the token in either case.
+For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity and uses the roles stored with it, ignoring the token's `roles` claim. When no user is stored, it creates an in-memory user with the roles from the token; a token without a `roles` claim is then rejected.
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
@@ -327,11 +331,11 @@ Run formatting, tests, and coverage verification with:
 
 `check` runs in this order: the Spotless formatting check, the tests, the coverage report, and the coverage verification. A formatting error fails the build before the slow test suite starts, and the coverage report is available even when the coverage threshold is not met.
 
-The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are defaults of the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugin. This project raises the minimum to 70% and also excludes generated code, in `build.gradle.kts`:
+The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are defaults of the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugin. This project raises the minimum to 80% and also excludes generated code, in `build.gradle.kts`:
 
 ```kotlin
 kostack {
-  coverageMinimum = 0.7
+  coverageMinimum = 0.8
   coverageExclusions.add("**/generated/**")
 }
 ```

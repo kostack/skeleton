@@ -53,10 +53,10 @@ abstract class BaseControllerIntegrationTest {
   protected suspend fun user(
     identity: String,
     claims: Map<String, Any> = emptyMap()
-  ): User =
-    requireNotNull(userProvider.load(identity, claims) as User) {
-      "Test user not found: $identity. Load fixtures before authenticating."
-    }
+  ): User {
+    val user = userProvider.load(identity, claims)
+    return checkNotNull(user as? User) { "UserProvider returned no User for $identity: $user" }
+  }
 
   protected fun authorizationHeader(accessToken: String): Pair<String, String> {
     val header = jwtProperties.authorizationHeader
