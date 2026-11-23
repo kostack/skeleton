@@ -14,44 +14,47 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 
 ## Layout
 
-```
-api/<resource>/
-  operation/                    <Resource>Operation (composed annotation) + one class per endpoint:
-                                List<Resource>, Get<Resource>, Create<Resource>, Complete<Resource>, ...
-  command/                      <Resource>CreateCommand, ... (request bodies with jakarta validation)
-  response/                     <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
-  filter/                       <Resource>ListFilter (query/sort definition for list endpoints)
-  resolver/                     <Resource>ArgumentResolver (loads path entities; a @Component,
-                                registered automatically, never in WebFluxConfig)
-  authorization/                <Resource>Authorization (@Component("<resource>Auth"))
-service/<resource>/             <Resource>Service + <Resource>ServiceImpl, only when needed (see below)
-db/r2dbc/{model,repository}     MySQL entities (@Table) and CoroutineCrudRepository
-db/mongodb/{model,repository}   Mongo documents (@Document) and CoroutineCrudRepository
-fixture/{r2dbc,mongodb}         AbstractFixture subclasses, ordered with @Order
-resources/db/migration          Flyway: V<n>__<description>.sql
+```text
+controller/<resource>/
+  <Resource>Controller.kt        One REST controller per resource, with suspend fun <verb>Action handlers
+  command/                       <Resource>CreateCommand, ... (request bodies with jakarta validation)
+  response/                      <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
+  filter/                        <Resource>ListFilter (query/sort definition for list endpoints)
+  resolver/                      <Resource>ArgumentResolver (loads path entities; a @Component,
+                                 registered automatically, never in WebFluxConfig)
+  authorization/                 <Resource>Authorization (@Component("<resource>Auth"))
+service/<resource>/              <Resource>Service + <Resource>ServiceImpl for business logic and persistence
+db/r2dbc/{model,repository}      MySQL entities (@Table) and CoroutineCrudRepository
+db/mongodb/{model,repository}    Mongo documents (@Document) and CoroutineCrudRepository
+fixture/{r2dbc,mongodb}          AbstractFixture subclasses, ordered with @Order
+resources/db/migration           Flyway: V<n>__<description>.sql
 ```
 
 Reference implementations: `task` (shared; a parent reference, a user reference, PUT replacement,
-a list scoped to a required parent resolved from a query parameter: `ListTask`) and `project` (an
-owner set from the principal, an owner-scoped list, a `@PreAuthorize` owner rule, an optional 1:1
-reference, an aggregate count in the list, and a delete that removes its children in one locked
-transaction: `DeleteProject`). When in doubt, copy their shape. No creator-private (`createdBy`) resource exists at the
-moment; follow the ownership rules below for one.
+a list scoped to a required parent resolved from a query parameter: `TaskController.listAction`)
+and `project` (an owner set from the principal, an owner-scoped list, a `@PreAuthorize` owner rule,
+an optional 1:1 reference, an aggregate count in the list, and a delete that removes its children
+in one locked transaction: `ProjectServiceImpl.delete`). When in doubt, copy their shape.
+No creator-private (`createdBy`) resource exists at the moment; follow the ownership rules below for one.
 
-By default there is no service layer. Each operation class is the use case: it handles one endpoint
-and reads and writes through repositories (and `GridQueryBuilder` for lists) directly. Resolvers and
-fixtures use repositories too.
+`controller/project/ProjectController` and `controller/task/TaskController` delegate to
+`service/project/ProjectService` and `service/task/TaskService`. The current-user endpoint uses
+`controller/me/MeController`, which maps the authenticated user directly to its response.
 
-Add a service only when the logic is needed outside an API operation, for example from a stream
-consumer (`cloud/stream/`) or a shell command (`shell/`):
-- Move the logic into `service/<resource>/<Resource>Service` (interface) and
-  `<Resource>ServiceImpl` (`@Service`). Its methods take plain parameters, not request commands or
-  HTTP types.
-- The operation then delegates to the service too, so the logic exists in one place. It keeps only
-  HTTP concerns (binding, status codes, the response mapping).
-- Add only the methods the non-API caller needs. Don't create services in advance or "for
-  consistency".
-- Services are outside `api/`, so they get unit tests.
+Controllers handle HTTP binding, request validation, authorization annotations, status codes and
+HTTP exception mapping. They delegate business logic and persistence to services. Controllers do
+not access repositories or `GridQueryBuilder` directly; resolvers and fixtures may use repositories.
+
+- Put service contracts in `service/<resource>/<Resource>Service` and implementations in
+  `<Resource>ServiceImpl` (`@Service`). Use suspend methods and coroutine repositories.
+- Pass entities, identifiers and individual command fields to service methods. Keep request commands
+  and HTTP status handling in controllers. Existing list methods accept `Pageable` and resource filters;
+  services may return response DTOs using the extensions in `response/`.
+- Services own business validation, reference lookup, list queries and transaction boundaries.
+  Controllers translate optimistic locking failures into HTTP 409 responses.
+- Stream consumers (`cloud/stream/`) and shell commands (`shell/`) reuse service methods when needed.
+  Add only methods required by a caller. A controller that only maps the principal, such as
+  `MeController`, needs no service.
 
 ## Kotlin style
 
@@ -65,17 +68,14 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 
 ## API conventions
 
-- Each resource has a composed annotation `api/<resource>/operation/<Resource>Operation.kt`
-  carrying `@RestController`, `@RequestMapping("/api/{version}/<plural>")` and `@Tag`. Every
-  operation class in that package is annotated with it and has exactly one handler:
-  `suspend operator fun invoke(...)` with the mapping annotation. Exception: `MeOperation` maps
-  `/api/{version}`, so the current-user endpoint stays at `/api/{version}/me`.
+- Each resource has one `controller/<resource>/<Resource>Controller.kt`, annotated with
+  `@RestController`, `@RequestMapping("/api/{version}/<plural>")` and `@Tag`.
+  `MeController` maps `/api/{version}/me`.
+- Handlers are `suspend fun <verb>Action(...)`, for example `listAction`, `getAction` and
+  `createAction`. Add endpoints to the resource's controller.
 - Every mapping declares `version = "1+"` (or a range when a version changes behavior).
-- The conventions still accept classic `<Resource>Controller` classes with `suspend fun <verb>Action`
-  handlers, but don't write new ones: every resource uses operation classes.
-- Add only the actions that were requested by name, as operation classes. "Create the X resource" with
-  no actions means only the `<Resource>Operation` annotation. Never add CRUD operations (or their DTOs,
-  resolvers and tests) that nobody asked for.
+- Add only the actions requested by name. A request to create a resource without named actions
+  does not authorize adding CRUD handlers, DTOs, resolvers or tests for unspecified endpoints.
 - Every endpoint has `@Operation(operationId = "<resource>_<verb>_action", summary = "...")`.
 - Declare `produces`/`consumes = [MediaType.APPLICATION_JSON_VALUE]` explicitly.
 - Status codes: create → `@ResponseStatus(HttpStatus.CREATED)`; update or delete without a body →
@@ -87,7 +87,7 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   updated.
 - Path entities: take `@PathVariable <resource>Id: String` plus
   `@Parameter(hidden = true) @ResolvedArgument entity: Entity`. The resolver returns 404 through
-  `ResponseStatusException(HttpStatus.NOT_FOUND)`. Operations never load their path entity themselves.
+  `ResponseStatusException(HttpStatus.NOT_FOUND)`. Controllers never load their path entity themselves.
 - Ownership comes in two forms; ask which one a new resource needs:
   - Creator-private (`createdBy`): the resolver loads by identifier and owner
     (`findByIdentifierAndCreatedBy(identifier, user.identity)`), so other users' entities are 404 and
@@ -95,7 +95,8 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   - Owner field with an owner rule (like `project`): `ownerId` is set from the principal and never
     accepted from the client; handlers restricted to the owner use
     `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`, so other users
-    get 403; the list is scoped with `.where(x[Xxx::ownerId] eq principal.identity)`.
+    get 403; the service scopes the list with `.where(x[Xxx::ownerId] eq ownerId)`,
+    where `ownerId` comes from the authenticated principal.
   In a resolver, get the user with
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User`, and throw
   `ResponseStatusException(HttpStatus.UNAUTHORIZED)` when it's missing.
@@ -118,17 +119,17 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
   user's `identity`. Load the related entity and report a missing or unsuitable one as a
   `ValidationException` on that field.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
-  and return `Pagination<<Resource>ListResponse>`, built in the operation with `GridQueryBuilder`
-  (see `ListTask`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
+  and return `Pagination<<Resource>ListResponse>`, built in the service with `GridQueryBuilder`
+  (see `TaskServiceImpl.list`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
   columns, and `.aggregateJoin(...)` with `@SelectAggregate`/`@QueryField(aggregate = ...)` for counts
-  (see `ListProject`).
+  (see `ProjectServiceImpl.list`).
 - A list scoped to a required parent takes `@RequestParam parentId: String` plus
   `@ResolvedArgument parent: Parent`; the parent's resolver falls back from the path variable to the
   query parameter (see `ProjectArgumentResolver`). Unknown parent → 404, missing parameter → 400.
 - Deleting an entity with children runs in one `TransactionalOperator.executeAndAwait { }`: lock the
-  row (`findByIdForUpdate`), delete the children (`@Modifying @Query`), then the entity. Operations
+  row (`findByIdForUpdate`), delete the children (`@Modifying @Query`), then the entity. Services
   that create children catch `DataIntegrityViolationException` and report a `ValidationException`
-  on the parent id field (see `DeleteProject`, `CreateTask`).
+  on the parent id field (see `ProjectServiceImpl.delete`, `TaskServiceImpl.create`).
 
 ## Persistence
 
@@ -152,16 +153,16 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 
 ## Tests
 
-- Operations are tested through HTTP only, with one integration test class per operation:
-  `integration/api/<resource>/operation/<Operation>IntegrationTest.kt` (for example
-  `CreateTaskIntegrationTest`). They extend `BaseIntegrationTest` (`clientFor(user(...))`,
-  `references`, `concurrently { }`) and cover the operation's business rules too. Use the
-  `spring-controller-integration-tests` skill. Reference tests: `integration/api/task/operation/`
-  and `integration/api/project/operation/` (`ListTaskIntegrationTest` shows a `list(...)` helper for
-  filter tests; `DeleteProjectIntegrationTest` shows race tests with `concurrently { }`).
+- Controllers are tested through HTTP with one integration test class per controller:
+  `integration/controller/<resource>/<Resource>ControllerIntegrationTest.kt`. They extend
+  `BaseIntegrationTest` (`clientFor(user(...))`, `references`, `concurrently { }`) and cover the
+  business rules and argument resolvers too. Use the `spring-controller-integration-tests` skill.
+  Reference tests: `TaskControllerIntegrationTest` shows a `list(...)` helper for filter tests;
+  `ProjectControllerIntegrationTest` shows race tests with `concurrently { }`.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
-  In `api/`, only authorization classes get unit tests; operations and resolvers are covered by
-  the integration tests. Outside `api/`, unit test classes with their own logic (`security/`).
+  In `controller/`, only authorization classes get unit tests; controllers and resolvers are covered
+  by the integration tests. Outside `controller/`, unit test classes with their own logic, such as
+  services and `security/`. Existing HTTP tests also exercise the project and task service behavior.
 - Test names are backtick sentences: `` `list combines filters with AND` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc. References can't be replaced (`setReference` throws): a fixture that
@@ -170,13 +171,13 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 
 ## Enforcement
 
-- `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` (with `apiPackage = "api"`) from the kostack
-  `service-conventions` library (Konsist, runs in `./gradlew test`) and enforces: controllers
-  (including classes with a composed `@RestController` annotation) live in `api/`; operation
-  classes in `api..operation` have a `suspend operator fun invoke` handler, other controllers
-  are `*Controller` with `suspend fun *Action`; `version` on every mapping; the operationId pattern;
-  no repositories in classic controllers (operations may use them); coroutine repositories; no
-  blocking or JDBC/JPA outside `configuration/`; and migration file names.
+- `architecture/ConventionsTest.kt` extends `ServiceConventionsTest` from the kostack
+  `service-conventions` library, using its default `controller` package. It runs in `./gradlew test`
+  and enforces: controllers live in `controller/` and are named `*Controller`; endpoint handlers
+  are `suspend fun *Action`; every mapping declares `version`; every endpoint has an operationId
+  matching the resource/verb/action pattern; controllers do not use repositories directly; service
+  implementations are `@Service` classes implementing their interfaces; repositories are coroutine
+  repositories; no blocking or JDBC/JPA outside `configuration/`; and valid migration file names.
   If it fails, fix the code. Rules are changed in the library, for every service at once; the
   per-service options are `legacyOperationIds` and overriding a rule without `@Test`.
 - Hooks in `.claude/settings.json`: committed migrations can't be edited, and Spotless runs
@@ -184,5 +185,6 @@ consumer (`cloud/stream/`) or a shell command (`shell/`):
 
 ## Skills in this repo
 
-- `add-rest-resource`: scaffold a new resource end-to-end.
+- `add-rest-resource`: scaffold a new resource end-to-end. Follow this guide
+  for controller/service layout when the skill still describes operation classes.
 - `spring-unit-tests`, `spring-controller-integration-tests`, `code-review`.

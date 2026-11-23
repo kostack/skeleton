@@ -399,7 +399,7 @@ docker compose --env-file docker/.env -f docker/prod-compose.yml up
 
 ```text
 src/main/kotlin/io/kostack/skeleton/
-├── api/                REST operations (one class per endpoint), commands and DTOs
+├── api/                REST controllers/operations, commands and DTOs
 ├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
 ├── db/                 MongoDB (users) and R2DBC/MySQL (projects, tasks) models and repositories
