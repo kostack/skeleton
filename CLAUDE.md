@@ -7,7 +7,8 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 
 - `./gradlew test`: full suite. Integration tests use Testcontainers, so Docker must be running.
 - `./gradlew check`: Spotless, then tests, then JaCoCo verification (minimum **80%** coverage;
-  `command`, `configuration`, `fixture` and `**/generated/**` are excluded).
+  the shared plugin excludes `command`, `configuration` and `fixture`; this service also excludes
+  `**/generated/**` and `**/request/**`).
 - `./gradlew spotlessApply`: fix formatting. Run it before reporting a task done.
 - Build logic comes from the kostack gradle-conventions plugins. Keep `build.gradle.kts` limited to
   what is specific to this service.
@@ -17,7 +18,7 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 ```text
 controller/<resource>/
   <Resource>Controller.kt        One REST controller per resource, with suspend fun <verb>Action handlers
-  command/                       <Resource>CreateCommand, ... (request bodies with jakarta validation)
+  request/                       <Resource>CreateRequest, <Resource>UpdateRequest (validated HTTP bodies)
   response/                      <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
   filter/                        <Resource>ListFilter (query/sort definition for list endpoints)
   resolver/                      <Resource>ArgumentResolver (loads path entities; a @Component,
@@ -47,7 +48,7 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
 
 - Put service contracts in `service/<resource>/<Resource>Service` and implementations in
   `<Resource>ServiceImpl` (`@Service`). Use suspend methods and coroutine repositories.
-- Pass entities, identifiers and individual command fields to service methods. Keep request commands
+- Pass entities, identifiers and individual request fields to service methods. Keep request DTOs
   and HTTP status handling in controllers. Existing list methods accept `Pageable` and resource filters;
   services may return response DTOs using the extensions in `response/`.
 - Services own business validation, reference lookup, list queries and transaction boundaries.
@@ -80,8 +81,8 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
 - Declare `produces`/`consumes = [MediaType.APPLICATION_JSON_VALUE]` explicitly.
 - Status codes: create → `@ResponseStatus(HttpStatus.CREATED)`; update or delete without a body →
   `@ResponseStatus(HttpStatus.NO_CONTENT)`.
-- Updates are `@PutMapping` replacements: every field comes from the command. Required fields are
-  non-null in the command (missing → 400); an omitted or `null` optional field or reference clears it.
+- Updates are `@PutMapping` replacements: every field comes from the request. Required fields are
+  non-null in the request (missing → 400); an omitted or `null` optional field or reference clears it.
   Skip the save when nothing changed, and turn `OptimisticLockingFailureException` into
   `ResponseStatusException(HttpStatus.CONFLICT)`. Updating a reference changes only the entity being
   updated.
@@ -110,12 +111,16 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
   Related entities appear as small summary DTOs (`ProjectFeaturedTaskResponse`,
   `TaskAssigneeResponse`). A user summary holds only `id` (the identity) and `name`; email is exposed
   only through `GET /me`.
-- Request bodies are commands (`command/<Resource>CreateCommand`), validated with `@Valid` and
-  `@field:` constraints. Unknown fields are ignored, never checked or rejected (no `@JsonAnySetter`
-  collectors, no `@Null` guards): fields a client may not set, such as an owner or an immutable
-  parent id, are simply not part of the command. Report business validation errors as
+- Name HTTP body DTOs `<Resource><Action>Request` and put them in `controller/<resource>/request/`,
+  for example `ProjectCreateRequest`, `ProjectUpdateRequest`, `TaskCreateRequest` and `TaskUpdateRequest`.
+  Use the handler parameter name `request`. These DTOs describe HTTP input; service methods receive
+  individual fields and resolved entities. Query filters stay in `filter/`.
+- Validate request DTOs with `@Valid @RequestBody` and `@field:` constraints. Unknown fields are ignored,
+  never checked or rejected (no `@JsonAnySetter` collectors, no `@Null` guards): fields a client may not
+  set, such as an owner or an immutable
+  parent id, are simply not part of the request. Report business validation errors as
   `ValidationException(listOf(ApiValidation.Violation(fieldId = ..., message = ...)))`.
-- References in commands and responses are public ids: the related entity's `identifier`, or a
+- References in requests and responses are public ids: the related entity's `identifier`, or a
   user's `identity`. Load the related entity and report a missing or unsuitable one as a
   `ValidationException` on that field.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
@@ -185,6 +190,6 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
 
 ## Skills in this repo
 
-- `add-rest-resource`: scaffold a new resource end-to-end. Follow this guide
-  for controller/service layout when the skill still describes operation classes.
+- `add-rest-resource`: scaffold a new resource end-to-end. Follow this guide for controller/service
+  layout, `*Request` DTO naming and controller integration tests when a skill describes older conventions.
 - `spring-unit-tests`, `spring-controller-integration-tests`, `code-review`.

@@ -30,7 +30,6 @@ class ProjectArgumentResolver(
     exchange: ServerWebExchange
   ): Mono<Any> =
     mono {
-      // A path variable on /projects/{projectId}, a query parameter on /tasks?projectId=...
       val identifier =
         exchange
           .getAttribute<Map<String, String>>(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)

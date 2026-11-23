@@ -2,9 +2,9 @@ package io.kostack.skeleton.controller.project
 
 import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
-import io.kostack.skeleton.controller.project.command.ProjectCreateCommand
-import io.kostack.skeleton.controller.project.command.ProjectUpdateCommand
 import io.kostack.skeleton.controller.project.filter.ProjectListFilter
+import io.kostack.skeleton.controller.project.request.ProjectCreateRequest
+import io.kostack.skeleton.controller.project.request.ProjectUpdateRequest
 import io.kostack.skeleton.controller.project.response.ProjectListResponse
 import io.kostack.skeleton.controller.project.response.ProjectResponse
 import io.kostack.skeleton.db.mongodb.model.User
@@ -71,9 +71,9 @@ class ProjectController(
   )
   @ResponseStatus(HttpStatus.CREATED)
   suspend fun createAction(
-    @Valid @RequestBody command: ProjectCreateCommand,
+    @Valid @RequestBody request: ProjectCreateRequest,
     @AuthenticationPrincipal user: User
-  ): ProjectResponse = projectService.create(command.name, command.description, user.identity)
+  ): ProjectResponse = projectService.create(request.name, request.description, user.identity)
 
   @Operation(
     operationId = "project_update_action",
@@ -88,10 +88,10 @@ class ProjectController(
   suspend fun updateAction(
     @PathVariable projectId: String,
     @Parameter(hidden = true) @ResolvedArgument project: Project,
-    @Valid @RequestBody command: ProjectUpdateCommand
+    @Valid @RequestBody request: ProjectUpdateRequest
   ) {
     try {
-      projectService.update(project, command.name, command.description, command.featuredTaskId)
+      projectService.update(project, request.name, request.description, request.featuredTaskId)
     } catch (_: OptimisticLockingFailureException) {
       throw ResponseStatusException(HttpStatus.CONFLICT, "The project was modified concurrently")
     }

@@ -1,10 +1,10 @@
-package io.kostack.skeleton.controller.task.command
+package io.kostack.skeleton.controller.task.request
 
 import io.kostack.skeleton.db.r2dbc.enums.TaskStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Size
 
-data class TaskUpdateCommand(
+data class TaskUpdateRequest(
   @field:Size(min = 2, max = 100) val title: String,
   val status: TaskStatus,
   @field:Schema(

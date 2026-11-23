@@ -2,9 +2,9 @@ package io.kostack.skeleton.controller.task
 
 import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
-import io.kostack.skeleton.controller.task.command.TaskCreateCommand
-import io.kostack.skeleton.controller.task.command.TaskUpdateCommand
 import io.kostack.skeleton.controller.task.filter.TaskListFilter
+import io.kostack.skeleton.controller.task.request.TaskCreateRequest
+import io.kostack.skeleton.controller.task.request.TaskUpdateRequest
 import io.kostack.skeleton.controller.task.response.TaskListResponse
 import io.kostack.skeleton.controller.task.response.TaskResponse
 import io.kostack.skeleton.db.r2dbc.model.Project
@@ -69,8 +69,8 @@ class TaskController(
   )
   @ResponseStatus(HttpStatus.CREATED)
   suspend fun createAction(
-    @Valid @RequestBody command: TaskCreateCommand
-  ): TaskResponse = taskService.create(command.projectId, command.title, command.assigneeId)
+    @Valid @RequestBody request: TaskCreateRequest
+  ): TaskResponse = taskService.create(request.projectId, request.title, request.assigneeId)
 
   @Operation(
     operationId = "task_update_action",
@@ -82,10 +82,10 @@ class TaskController(
   suspend fun updateAction(
     @PathVariable taskId: String,
     @Parameter(hidden = true) @ResolvedArgument task: Task,
-    @Valid @RequestBody command: TaskUpdateCommand
+    @Valid @RequestBody request: TaskUpdateRequest
   ) {
     try {
-      taskService.update(task, command.title, command.status, command.assigneeId)
+      taskService.update(task, request.title, request.status, request.assigneeId)
     } catch (_: OptimisticLockingFailureException) {
       throw ResponseStatusException(HttpStatus.CONFLICT, "The task was modified concurrently")
     }

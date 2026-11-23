@@ -236,14 +236,14 @@ Tokens must use the audience `kostack`, the `RS512` signature algorithm, and one
 | `local` | `JWT_PUBLIC_KEY`; this is also the issuer the service signs its own tokens with |
 | `user-service.local` | The JWKS at `USER_SERVICE_JWKS_URI` (default `http://user-service.local/.well-known/jwks.json`) |
 
-For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity and uses the roles stored with it, ignoring the token's `roles` claim. When no user is stored, it creates an in-memory user from the token's `name`, `email` and `roles` claims; a token without one of them is then rejected. Such a user is stored when they create their first project, so that every project owner can be shown by name.
+For local development, generate a token with the `generate-token` shell command described below. The JWT subject identifies the user, and the `roles` claim supplies their roles. `UserProviderImpl` loads an existing user by identity and uses the roles stored with it, ignoring the token's `roles` claim. When no user is stored, it creates an in-memory user from the token's `name`, `email` and `roles` claims; a token without one of them is then rejected. Creating a project uses this user's identity as its owner without storing the token-derived user.
 
 | Endpoint | Behavior | Access |
 | --- | --- | --- |
 | `GET /api/v1/me` | Returns the current user's `id` (identity), `name` and `email` | Any authenticated user |
-| `POST /api/v1/projects` | Creates a project from `name` and optional `description`, owned by the current user; returns `201`, or `400` if a client sends `ownerId` | Any authenticated user |
-| `GET /api/v1/projects` | Returns paginated projects; filter by `ownerId` and `name`, sort by `name` or `createdAt` | Any authenticated user |
-| `GET /api/v1/projects/{projectId}` | Returns a project with an owner summary (`id`, `name`) and its optional featured task summary | Any authenticated user |
+| `POST /api/v1/projects` | Creates a project from `name` and optional `description`, owned by the current user; returns `201`; a client-supplied `ownerId` is ignored | Any authenticated user |
+| `GET /api/v1/projects` | Returns only the current user's projects with task counts; filter by `name`, `minTaskCount` and `maxTaskCount`, sort by `name`, `createdAt` or `taskCount` | Any authenticated user |
+| `GET /api/v1/projects/{projectId}` | Returns a project with its optional featured task summary | Owner only (`403` otherwise) |
 | `PUT /api/v1/projects/{projectId}` | Replaces `name` (required) and `description` (omitted clears it); `featuredTaskId` selects one of the project's own tasks (omitted or `null` clears it); returns `204` | Owner only (`403` otherwise) |
 | `DELETE /api/v1/projects/{projectId}` | Deletes the project and all its tasks in one transaction; returns `204` | Owner only (`403` otherwise) |
 | `POST /api/v1/tasks` | Creates a `TODO` task from `projectId`, `title` and optional `assigneeId` (an existing user); returns `201` | Any authenticated user |
@@ -316,6 +316,8 @@ The command sends a message with `StreamBridge` through the `demo-out` binding t
 
 Integration tests start their own MySQL, MongoDB, and RabbitMQ with [Testcontainers](https://testcontainers.com), so they need a running Docker daemon but never touch the shared local services. `src/test/kotlin/io/kostack/skeleton/integration/TestcontainersConfiguration.kt` defines the containers; `@ServiceConnection` replaces the R2DBC, Flyway, MongoDB, and RabbitMQ connection settings from `docker/.env`. The other variables, such as the JWT keys, still come from `docker/.env`. The containers start once per cached Spring context and are removed when the test JVM exits. Integration tests clear application tables and load fixtures in these containers.
 
+HTTP integration tests are grouped by controller in `src/test/kotlin/io/kostack/skeleton/integration/controller/`: `ProjectControllerIntegrationTest`, `TaskControllerIntegrationTest` and `MeControllerIntegrationTest`. They exercise request validation, authorization, persistence and transaction behavior through the real HTTP endpoints.
+
 Integration tests extend `BaseIntegrationTest`. It provides `clientFor(user)` for authenticated requests, `user(identity)` for fixture users, and `concurrently(times) { ... }`, which sends the same request in parallel (8 times by default) and returns the results in order. Use `concurrently` to test race conditions, such as duplicate creates or concurrent updates.
 
 Tests always run with the `test` profile (which also includes `cloud-consumer`), whatever `springProfile` or `SPRING_PROFILES_ACTIVE` is set to; the fixtures they load exist only with the `test` and `shell` profiles. Gradle loads `docker/.env.test` if it exists, otherwise `docker/.env`.
@@ -336,12 +338,13 @@ Run formatting, tests, and coverage verification with:
 
 `check` runs in this order: the Spotless formatting check, the tests, the coverage report, and the coverage verification. A formatting error fails the build before the slow test suite starts, and the coverage report is available even when the coverage threshold is not met.
 
-The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are defaults of the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugin. This project raises the minimum to 80% and also excludes generated code, in `build.gradle.kts`:
+The minimum coverage (50%) and the packages excluded from coverage (`command`, `configuration`, and `fixture`) are defaults of the [kostack gradle-conventions](https://github.com/kostack/gradle-conventions) plugin. This project raises the minimum to 80% and also excludes generated code and request DTOs, in `build.gradle.kts`:
 
 ```kotlin
 kostack {
   coverageMinimum = 0.8
   coverageExclusions.add("**/generated/**")
+  coverageExclusions.add("**/request/**")
 }
 ```
 
@@ -399,12 +402,13 @@ docker compose --env-file docker/.env -f docker/prod-compose.yml up
 
 ```text
 src/main/kotlin/io/kostack/skeleton/
-├── api/                REST controllers/operations, commands and DTOs
+├── controller/         REST controllers, request and response DTOs
 ├── cloud/stream/       RabbitMQ consumer functions (cloud-consumer profile)
 ├── configuration/      Security, database, JSON, and OpenAPI configuration
 ├── db/                 MongoDB (users) and R2DBC/MySQL (projects, tasks) models and repositories
 ├── fixture/            Development and test data fixtures
-├── security/           Authorization rules and audit support
+├── security/           JWT user loading and audit support
+├── service/            Business logic, persistence, list queries and transactions
 └── shell/              Spring Shell commands
 
 src/main/resources/
@@ -412,10 +416,23 @@ src/main/resources/
 └── application*.yml    Base and profile-specific configuration
 ```
 
+Each resource has one controller with `suspend fun <verb>Action(...)` handlers. `ProjectController` and `TaskController` delegate business logic and repository access to `ProjectService` and `TaskService`; `MeController` maps the authenticated user directly to a response.
+
+HTTP request bodies use `<Resource><Action>Request` data classes under `controller/<resource>/request/`. Responses live in the sibling `response/` package. The request DTOs are:
+
+| Endpoint | Request DTO |
+| --- | --- |
+| `POST /api/v1/projects` | `ProjectCreateRequest` |
+| `PUT /api/v1/projects/{projectId}` | `ProjectUpdateRequest` |
+| `POST /api/v1/tasks` | `TaskCreateRequest` |
+| `PUT /api/v1/tasks/{taskId}` | `TaskUpdateRequest` |
+
+Controllers validate request DTOs with `@Valid @RequestBody`, then pass individual fields and resolved entities to services. Query filters remain in `filter/`. Services handle business validation and transactions, while controllers handle HTTP status mapping. See [CLAUDE.md](CLAUDE.md) for the coding and testing conventions.
+
 ## How to extend the skeleton
 
 1. Rename the project and package from `skeleton` to your service name.
-2. Replace the example `Project`/`Task` domain, fixtures, operations, and tests.
+2. Replace the example `Project`/`Task` domain, controllers, services, request/response DTOs, fixtures, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
 4. Replace all embedded development credentials with external configuration.
 5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.
