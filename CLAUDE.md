@@ -162,12 +162,15 @@ or `GridQueryBuilder` directly; handlers, resolvers and fixtures may do so.
 
 ## Tests
 
-- Controllers are tested through HTTP with one integration test class per controller:
-  `integration/controller/<resource>/<Resource>ControllerIntegrationTest.kt`. They extend
+- Test controller actions through HTTP in dedicated files under `integration/controller/<resource>/`,
+  named `<Resource><Action>IntegrationTest.kt`, such as `ProjectCreateIntegrationTest`. Project tests
+  are split into create, get, list, update and delete classes; task tests into create, get, list and
+  update classes. The current-user endpoint uses `MeControllerIntegrationTest`. All extend
   `BaseIntegrationTest` (`clientFor(user(...))`, `references`, `concurrently { }`) and cover the
   business rules and argument resolvers too. Use the `spring-controller-integration-tests` skill.
-  Reference tests: `TaskControllerIntegrationTest` shows a `list(...)` helper for filter tests;
-  `ProjectControllerIntegrationTest` shows race tests with `concurrently { }`.
+  Reference tests: `TaskListIntegrationTest` shows a `list(...)` helper for filter tests;
+  `ProjectListIntegrationTest` also covers owner-scoped filters, and `ProjectDeleteIntegrationTest`
+  shows race tests with `concurrently { }`.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
   In `controller/`, only authorization classes get unit tests; controllers, handlers and resolvers
   are covered by the HTTP integration tests. Outside `controller/`, unit test classes with their own

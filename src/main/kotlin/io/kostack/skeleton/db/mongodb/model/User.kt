@@ -1,6 +1,5 @@
 package io.kostack.skeleton.db.mongodb.model
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import io.github.kostack.jwt_security.dto.JwtUser
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Version
@@ -14,7 +13,7 @@ data class User(
   val name: String,
   @Indexed(unique = true) val email: String,
   val roles: List<String>,
-  @JsonIgnore @Version val version: Long? = null
+  @Version val version: Long? = null
 ) : JwtUser {
   override fun claims(): Map<String, Any> =
     buildMap {
