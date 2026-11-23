@@ -18,13 +18,13 @@ README.MD has setup, profiles, and Docker details; this file holds the coding co
 ```text
 controller/<resource>/
   <Resource>Controller.kt        One REST controller per resource, with suspend fun <verb>Action handlers
+  handler/                       <Resource><Action>Handler (@Service, suspend operator fun invoke)
   request/                       <Resource>CreateRequest, <Resource>UpdateRequest (validated HTTP bodies)
   response/                      <Resource>Response, <Resource>ListResponse, ResponseExtensions.kt
   filter/                        <Resource>ListFilter (query/sort definition for list endpoints)
   resolver/                      <Resource>ArgumentResolver (loads path entities; a @Component,
                                  registered automatically, never in WebFluxConfig)
   authorization/                 <Resource>Authorization (@Component("<resource>Auth"))
-service/<resource>/              <Resource>Service + <Resource>ServiceImpl for business logic and persistence
 db/r2dbc/{model,repository}      MySQL entities (@Table) and CoroutineCrudRepository
 db/mongodb/{model,repository}    Mongo documents (@Document) and CoroutineCrudRepository
 fixture/{r2dbc,mongodb}          AbstractFixture subclasses, ordered with @Order
@@ -35,27 +35,30 @@ Reference implementations: `task` (shared; a parent reference, a user reference,
 a list scoped to a required parent resolved from a query parameter: `TaskController.listAction`)
 and `project` (an owner set from the principal, an owner-scoped list, a `@PreAuthorize` owner rule,
 an optional 1:1 reference, an aggregate count in the list, and a delete that removes its children
-in one locked transaction: `ProjectServiceImpl.delete`). When in doubt, copy their shape.
+in one locked transaction: `ProjectDeleteHandler`). When in doubt, copy their shape.
 No creator-private (`createdBy`) resource exists at the moment; follow the ownership rules below for one.
 
-`controller/project/ProjectController` and `controller/task/TaskController` delegate to
-`service/project/ProjectService` and `service/task/TaskService`. The current-user endpoint uses
+`controller/project/ProjectController` and `controller/task/TaskController` delegate each action to
+its own handler in `controller/<resource>/handler/`. The current-user endpoint uses
 `controller/me/MeController`, which maps the authenticated user directly to its response.
 
-Controllers handle HTTP binding, request validation, authorization annotations, status codes and
-HTTP exception mapping. They delegate business logic and persistence to services. Controllers do
-not access repositories or `GridQueryBuilder` directly; resolvers and fixtures may use repositories.
+Controllers handle HTTP binding, request validation, authorization annotations and success status codes.
+They delegate business logic and persistence to action handlers. Controllers never access repositories
+or `GridQueryBuilder` directly; handlers, resolvers and fixtures may do so.
 
-- Put service contracts in `service/<resource>/<Resource>Service` and implementations in
-  `<Resource>ServiceImpl` (`@Service`). Use suspend methods and coroutine repositories.
-- Pass entities, identifiers and individual request fields to service methods. Keep request DTOs
-  and HTTP status handling in controllers. Existing list methods accept `Pageable` and resource filters;
-  services may return response DTOs using the extensions in `response/`.
-- Services own business validation, reference lookup, list queries and transaction boundaries.
-  Controllers translate optimistic locking failures into HTTP 409 responses.
-- Stream consumers (`cloud/stream/`) and shell commands (`shell/`) reuse service methods when needed.
-  Add only methods required by a caller. A controller that only maps the principal, such as
-  `MeController`, needs no service.
+- Name handlers `<Resource><Action>Handler`, such as `ProjectListHandler` and `TaskCreateHandler`.
+  Annotate each with `@Service` and expose one `suspend operator fun invoke(...)` method. Inject only
+  the dependencies that action needs. Controllers call handlers directly using operator syntax.
+- When a request DTO is available, always pass it directly to `handler.invoke` as `request`. Pass
+  resolved entities and authenticated ownership data as additional arguments, such as
+  `projectCreateHandler(request, user.identity)` and `projectUpdateHandler(project, request)`.
+  Keep HTTP binding, request validation and success status annotations in controllers. List handlers accept
+  `Pageable` and resource filters; handlers may return response DTOs using the extensions in `response/`.
+- Handlers own business validation, reference lookup, list queries and transaction boundaries.
+  Handlers throw API exceptions and translate optimistic locking failures into
+  `ResponseStatusException(HttpStatus.CONFLICT)`. Controllers delegate directly without catching exceptions.
+- Add handlers only for requested actions. Project and task have no resource-wide service interfaces
+  or implementations. A controller that only maps the principal, such as `MeController`, needs no handler.
 
 ## Kotlin style
 
@@ -96,7 +99,7 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
   - Owner field with an owner rule (like `project`): `ownerId` is set from the principal and never
     accepted from the client; handlers restricted to the owner use
     `@PreAuthorize("@<resource>Auth.requireOwner(#entity, authentication.principal)")`, so other users
-    get 403; the service scopes the list with `.where(x[Xxx::ownerId] eq ownerId)`,
+    get 403; the list handler scopes the list with `.where(x[Xxx::ownerId] eq ownerId)`,
     where `ownerId` comes from the authenticated principal.
   In a resolver, get the user with
   `exchange.getPrincipal<Authentication>().awaitSingleOrNull()?.principal as? User`, and throw
@@ -113,8 +116,9 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
   only through `GET /me`.
 - Name HTTP body DTOs `<Resource><Action>Request` and put them in `controller/<resource>/request/`,
   for example `ProjectCreateRequest`, `ProjectUpdateRequest`, `TaskCreateRequest` and `TaskUpdateRequest`.
-  Use the handler parameter name `request`. These DTOs describe HTTP input; service methods receive
-  individual fields and resolved entities. Query filters stay in `filter/`.
+  Use the parameter name `request` in controllers and handlers. Pass the whole request object to
+  the handler whenever one is available, together with resolved entities as needed. Query filters
+  stay in `filter/`.
 - Validate request DTOs with `@Valid @RequestBody` and `@field:` constraints. Unknown fields are ignored,
   never checked or rejected (no `@JsonAnySetter` collectors, no `@Null` guards): fields a client may not
   set, such as an owner or an immutable
@@ -124,17 +128,17 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
   user's `identity`. Load the related entity and report a missing or unsuitable one as a
   `ValidationException` on that field.
 - List endpoints take `@ParameterObject pageable: Pageable` and `@Valid @ParameterObject filter`,
-  and return `Pagination<<Resource>ListResponse>`, built in the service with `GridQueryBuilder`
-  (see `TaskServiceImpl.list`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
+  and return `Pagination<<Resource>ListResponse>`, built in the list handler with `GridQueryBuilder`
+  (see `TaskListHandler`). Use `.join(...)` with `@QueryField(table = ...)`/`@SelectColumn` for related
   columns, and `.aggregateJoin(...)` with `@SelectAggregate`/`@QueryField(aggregate = ...)` for counts
-  (see `ProjectServiceImpl.list`).
+  (see `ProjectListHandler`).
 - A list scoped to a required parent takes `@RequestParam parentId: String` plus
   `@ResolvedArgument parent: Parent`; the parent's resolver falls back from the path variable to the
   query parameter (see `ProjectArgumentResolver`). Unknown parent → 404, missing parameter → 400.
 - Deleting an entity with children runs in one `TransactionalOperator.executeAndAwait { }`: lock the
-  row (`findByIdForUpdate`), delete the children (`@Modifying @Query`), then the entity. Services
+  row (`findByIdForUpdate`), delete the children (`@Modifying @Query`), then the entity. Handlers
   that create children catch `DataIntegrityViolationException` and report a `ValidationException`
-  on the parent id field (see `ProjectServiceImpl.delete`, `TaskServiceImpl.create`).
+  on the parent id field (see `ProjectDeleteHandler`, `TaskCreateHandler`).
 
 ## Persistence
 
@@ -165,9 +169,9 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
   Reference tests: `TaskControllerIntegrationTest` shows a `list(...)` helper for filter tests;
   `ProjectControllerIntegrationTest` shows race tests with `concurrently { }`.
 - Unit tests (JUnit 5 + MockK, `runTest`) mirror the main package. Use the `spring-unit-tests` skill.
-  In `controller/`, only authorization classes get unit tests; controllers and resolvers are covered
-  by the integration tests. Outside `controller/`, unit test classes with their own logic, such as
-  services and `security/`. Existing HTTP tests also exercise the project and task service behavior.
+  In `controller/`, only authorization classes get unit tests; controllers, handlers and resolvers
+  are covered by the HTTP integration tests. Outside `controller/`, unit test classes with their own
+  logic, such as `security/`.
 - Test names are backtick sentences: `` `list combines filters with AND` ``.
 - Fixtures load only with the `test` and `shell` profiles. Document the fixture data each test
   class relies on in its KDoc. References can't be replaced (`setReference` throws): a fixture that
@@ -190,6 +194,6 @@ not access repositories or `GridQueryBuilder` directly; resolvers and fixtures m
 
 ## Skills in this repo
 
-- `add-rest-resource`: scaffold a new resource end-to-end. Follow this guide for controller/service
+- `add-rest-resource`: scaffold a new resource end-to-end. Follow this guide for controller/handler
   layout, `*Request` DTO naming and controller integration tests when a skill describes older conventions.
 - `spring-unit-tests`, `spring-controller-integration-tests`, `code-review`.

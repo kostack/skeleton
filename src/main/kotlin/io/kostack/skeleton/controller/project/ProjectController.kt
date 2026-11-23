@@ -3,19 +3,22 @@ package io.kostack.skeleton.controller.project
 import io.github.kostack.database_tools.paginator.Pagination
 import io.github.kostack.spring_tools.controller.resolver.ResolvedArgument
 import io.kostack.skeleton.controller.project.filter.ProjectListFilter
+import io.kostack.skeleton.controller.project.handler.ProjectCreateHandler
+import io.kostack.skeleton.controller.project.handler.ProjectDeleteHandler
+import io.kostack.skeleton.controller.project.handler.ProjectGetHandler
+import io.kostack.skeleton.controller.project.handler.ProjectListHandler
+import io.kostack.skeleton.controller.project.handler.ProjectUpdateHandler
 import io.kostack.skeleton.controller.project.request.ProjectCreateRequest
 import io.kostack.skeleton.controller.project.request.ProjectUpdateRequest
 import io.kostack.skeleton.controller.project.response.ProjectListResponse
 import io.kostack.skeleton.controller.project.response.ProjectResponse
 import io.kostack.skeleton.db.mongodb.model.User
 import io.kostack.skeleton.db.r2dbc.model.Project
-import io.kostack.skeleton.service.project.ProjectService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
-import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -30,13 +33,16 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/{version}/projects")
 @Tag(name = "Project", description = "Api operations for managing projects")
 class ProjectController(
-  private val projectService: ProjectService
+  private val projectListHandler: ProjectListHandler,
+  private val projectGetHandler: ProjectGetHandler,
+  private val projectCreateHandler: ProjectCreateHandler,
+  private val projectUpdateHandler: ProjectUpdateHandler,
+  private val projectDeleteHandler: ProjectDeleteHandler
 ) {
   @Operation(
     operationId = "project_list_action",
@@ -47,7 +53,7 @@ class ProjectController(
     @ParameterObject pageable: Pageable,
     @Valid @ParameterObject filter: ProjectListFilter,
     @AuthenticationPrincipal principal: User
-  ): Pagination<ProjectListResponse> = projectService.list(pageable, filter, principal.identity)
+  ): Pagination<ProjectListResponse> = projectListHandler(pageable, filter, principal.identity)
 
   @Operation(
     operationId = "project_get_action",
@@ -58,7 +64,7 @@ class ProjectController(
   suspend fun getAction(
     @PathVariable projectId: String,
     @Parameter(hidden = true) @ResolvedArgument project: Project
-  ): ProjectResponse = projectService.get(project)
+  ): ProjectResponse = projectGetHandler(project)
 
   @Operation(
     operationId = "project_create_action",
@@ -73,7 +79,7 @@ class ProjectController(
   suspend fun createAction(
     @Valid @RequestBody request: ProjectCreateRequest,
     @AuthenticationPrincipal user: User
-  ): ProjectResponse = projectService.create(request.name, request.description, user.identity)
+  ): ProjectResponse = projectCreateHandler(request, user.identity)
 
   @Operation(
     operationId = "project_update_action",
@@ -89,13 +95,7 @@ class ProjectController(
     @PathVariable projectId: String,
     @Parameter(hidden = true) @ResolvedArgument project: Project,
     @Valid @RequestBody request: ProjectUpdateRequest
-  ) {
-    try {
-      projectService.update(project, request.name, request.description, request.featuredTaskId)
-    } catch (_: OptimisticLockingFailureException) {
-      throw ResponseStatusException(HttpStatus.CONFLICT, "The project was modified concurrently")
-    }
-  }
+  ) = projectUpdateHandler(project, request)
 
   @Operation(
     operationId = "project_delete_action",
@@ -108,5 +108,5 @@ class ProjectController(
   suspend fun deleteAction(
     @PathVariable projectId: String,
     @Parameter(hidden = true) @ResolvedArgument project: Project
-  ) = projectService.delete(project)
+  ) = projectDeleteHandler(project)
 }

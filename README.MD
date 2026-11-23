@@ -408,7 +408,6 @@ src/main/kotlin/io/kostack/skeleton/
 ├── db/                 MongoDB (users) and R2DBC/MySQL (projects, tasks) models and repositories
 ├── fixture/            Development and test data fixtures
 ├── security/           JWT user loading and audit support
-├── service/            Business logic, persistence, list queries and transactions
 └── shell/              Spring Shell commands
 
 src/main/resources/
@@ -416,7 +415,7 @@ src/main/resources/
 └── application*.yml    Base and profile-specific configuration
 ```
 
-Each resource has one controller with `suspend fun <verb>Action(...)` handlers. `ProjectController` and `TaskController` delegate business logic and repository access to `ProjectService` and `TaskService`; `MeController` maps the authenticated user directly to a response.
+Each resource has one controller with `suspend fun <verb>Action(...)` handlers. `ProjectController` and `TaskController` delegate each action to a dedicated `<Resource><Action>Handler` under `controller/<resource>/handler/` (for example, `ProjectListHandler` and `TaskCreateHandler`); `MeController` maps the authenticated user directly to a response.
 
 HTTP request bodies use `<Resource><Action>Request` data classes under `controller/<resource>/request/`. Responses live in the sibling `response/` package. The request DTOs are:
 
@@ -427,12 +426,12 @@ HTTP request bodies use `<Resource><Action>Request` data classes under `controll
 | `POST /api/v1/tasks` | `TaskCreateRequest` |
 | `PUT /api/v1/tasks/{taskId}` | `TaskUpdateRequest` |
 
-Controllers validate request DTOs with `@Valid @RequestBody`, then pass individual fields and resolved entities to services. Query filters remain in `filter/`. Services handle business validation and transactions, while controllers handle HTTP status mapping. See [CLAUDE.md](CLAUDE.md) for the coding and testing conventions.
+Controllers validate request DTOs with `@Valid @RequestBody`, then pass the whole request object to the handler whenever available, alongside resolved entities and authenticated ownership data as needed. Query filters remain in `filter/`. Handlers are `@Service` beans exposing `suspend operator fun invoke(...)`; they handle business validation, persistence, list queries and transactions, and throw API exceptions (including HTTP 409 for optimistic locking conflicts). Controllers delegate directly and declare success statuses with annotations. Project and task use these action handlers directly, with no resource-wide service interfaces or implementations. See [CLAUDE.md](CLAUDE.md) for the coding and testing conventions.
 
 ## How to extend the skeleton
 
 1. Rename the project and package from `skeleton` to your service name.
-2. Replace the example `Project`/`Task` domain, controllers, services, request/response DTOs, fixtures, and tests.
+2. Replace the example `Project`/`Task` domain, controllers, handlers, request/response DTOs, fixtures, and tests.
 3. Add new Flyway migrations instead of editing an already-applied migration.
 4. Replace all embedded development credentials with external configuration.
 5. Update the RabbitMQ producer bindings (`application.yml`) and consumer functions (`application-cloud-consumer.yml`) for your service events.

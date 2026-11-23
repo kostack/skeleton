@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository
 interface ProjectRepository : CoroutineCrudRepository<Project, Long> {
   suspend fun findByIdentifier(identifier: String): Project?
 
-  /** Loads and locks the row until the current transaction ends; call it inside a transaction. */
   @Query("SELECT * FROM projects WHERE id = :id FOR UPDATE")
   suspend fun findByIdForUpdate(id: Long): Project?
 }
