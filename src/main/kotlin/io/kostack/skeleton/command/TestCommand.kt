@@ -1,4 +1,4 @@
-package io.kostack.skeleton.shell
+package io.kostack.skeleton.command
 
 import org.springframework.cloud.stream.function.StreamBridge
 import org.springframework.context.annotation.Profile
@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 
 @Profile("shell")
 @Component
-class TestShell(
+class TestCommand(
   val streamBridge: StreamBridge
 ) {
   @Command(

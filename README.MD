@@ -208,19 +208,19 @@ The API reference (`/docs`) and the OpenAPI document (`/v3/api-docs`) use HTTP B
 
 The API is versioned by path (`/api/v1/...`). To add a version, add it to `spring.webflux.apiversion.supported` and add `version = "2+"` handlers only for endpoints whose contract changes; handlers declared with `version = "1+"` keep serving later versions. A single OpenAPI document lists all versions, with the version filled into each path (e.g. `/api/v1/me`, `/api/v2/me`).
 
-Routes under `/api/**` require a valid JWT. The current configuration uses the `x-auth` header with an empty prefix:
+Routes under `/api/**` require a valid JWT. The current configuration uses the `Authorization` header with the `Bearer` prefix:
 
 ```http
-x-auth: <token>
+Authorization: Bearer <token>
 ```
 
 Example requests:
 
 ```bash
-curl -H "x-auth: $TOKEN" \
+curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8080/api/v1/me
 
-curl -G -H "x-auth: $TOKEN" \
+curl -G -H "Authorization: Bearer $TOKEN" \
   --data-urlencode "projectId=$PROJECT_ID" \
   --data-urlencode "status=TODO" \
   --data-urlencode "sort=title,desc" \
@@ -253,7 +253,7 @@ For local development, generate a token with the `generate-token` shell command 
 
 Projects and tasks are identified by their public `identifier` (a UUID); the numeric primary keys stay internal. Users are identified by their `identity`. An unknown `identifier` returns `404`; an unknown related id in a request body returns `400` with a violation for that field. A user's email is exposed only through `GET /api/v1/me`.
 
-The OpenAPI security scheme currently describes a Bearer header. Use the `x-auth` header shown above for API requests, or align the OpenAPI scheme and application security configuration before using Scalar's authentication settings.
+The OpenAPI security scheme uses HTTP Bearer authentication. In Scalar's authentication settings, enter the JWT; requests send it as `Authorization: Bearer <token>`.
 
 ## How to call actuator endpoints
 
@@ -261,7 +261,7 @@ The service exposes `health`, `info`, and `metrics` on `MANAGEMENT_SERVER_PORT` 
 
 ```bash
 curl http://localhost:8081/actuator/health
-curl -H "x-auth: $TOKEN" http://localhost:8081/actuator/metrics
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/actuator/metrics
 ```
 
 Never expose the management port publicly. Replace the template API docs password before deployment.
